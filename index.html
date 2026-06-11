@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The Drip Atelier — Generative Pollock Studio</title>
+<title>The Atelier — Generative Studio</title>
 <meta name="description" content="Generate museum-grade, high-resolution drip paintings in the manner of Jackson Pollock. Watch the pour happen live, frame it, download it.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -273,11 +273,16 @@ canvas#view{display:block;background:#e7e0cd}
 
 <aside>
   <div class="brand">
-    <h1>The Drip<br>Atelier <em>·</em></h1>
-    <p>An algorithmic studio in the manner of Jackson Pollock. Each pour is one of a kind — flung, dripped and pooled in enamel, then hung for you at archival resolution.</p>
+    <h1>The<br>Atelier <em>·</em></h1>
+    <p>An algorithmic studio. Commission a Jackson Pollock pour — flung, dripped and pooled in enamel — or a hand-embroidered silk carré, finished at archival resolution.</p>
   </div>
 
   <div class="field">
+    <label id="lab-coll">Collection</label>
+    <div class="chips" role="group" aria-labelledby="lab-coll" id="collChips"></div>
+  </div>
+
+  <div class="field" id="fieldFormat">
     <label id="lab-format">Canvas format</label>
     <div class="chips" role="group" aria-labelledby="lab-format" id="formatChips"></div>
   </div>
@@ -285,6 +290,11 @@ canvas#view{display:block;background:#e7e0cd}
   <div class="field">
     <label id="lab-palette">Enamel palette</label>
     <div class="chips wide" role="group" aria-labelledby="lab-palette" id="paletteChips"></div>
+  </div>
+
+  <div class="field" id="fieldMotif" hidden>
+    <label id="lab-motif">Motif</label>
+    <div class="chips" role="group" aria-labelledby="lab-motif" id="motifChips"></div>
   </div>
 
   <div class="field">
@@ -304,7 +314,7 @@ canvas#view{display:block;background:#e7e0cd}
 
   <div class="status" id="status" aria-live="polite"></div>
 
-  <p class="fineprint">Each fresh painting is thrown over about three seconds — physics-simulated pours under real gravity. Renders at up to 4,400&nbsp;px on the long edge; downloads include your chosen frame. No two pours repeat.</p>
+  <p class="fineprint">Paintings are thrown over about three seconds — physics-simulated pours under real gravity. Carrés are stitched thread by thread with hand-rolled hems. Everything renders at up to 4,400&nbsp;px; downloads include your chosen frame. No two commissions repeat.</p>
 </aside>
 
 <main>
@@ -315,7 +325,7 @@ canvas#view{display:block;background:#e7e0cd}
     <div class="placard" id="placard">
       <input id="pTitle" value="No. 17, 2026" maxlength="48" spellcheck="false"
              aria-label="Title of the piece — click to rename" title="Click to rename this piece">
-      <div class="artist">The Drip Atelier</div>
+      <div class="artist">The Atelier</div>
       <div class="meta"><span id="pMedium">Enamel on canvas</span> · <span id="pDims">210 × 140 cm</span></div>
     </div>
     <div class="story" id="story" hidden></div>
@@ -472,7 +482,7 @@ const FRAMES={
 };
 
 /* ---------- state ---------- */
-const state={format:"classic",palette:"convergence",frame:"none",seed:0,frameSeed:1,dyn:.6,title:"",activeId:null,done:false,
+const state={mode:"pollock",format:"classic",palette:"convergence",scarfPalette:"flamme",motif:"chaine",frame:"none",seed:0,frameSeed:1,dyn:.6,title:"",activeId:null,done:false,
   ai:(()=>{try{return localStorage.getItem("drip-atelier-ai")==="1";}catch(e){return false;}})(),
   directives:[],story:""};
 let genId=0;
@@ -481,7 +491,7 @@ let genId=0;
    A work is fully reproducible from {seed, format, palette, dyn}, so we
    persist recipes + thumbnails, never pixels. localStorage is guarded:
    where it's unavailable the ledge still works for the current session. */
-const LS_KEY="drip-atelier-ledge-v9";
+const LS_KEY="drip-atelier-ledge-v10";
 /* The ledge can be communal. Storage adapter, in order of preference:
      1. window.storage  — shared artifact storage (e.g. claude.ai)
      2. /api/ledge      — Vercel serverless function backed by KV (README)
@@ -1259,7 +1269,7 @@ function* paintPhase(seed,fmtKey,palKey,dyn,statusCb,prog){
   hi.width=W;hi.height=H;
   const u=Math.max(W,H)/1000;
   const ppm=Math.max(W,H)/fmt.m;      // pixels per metre of real canvas
-  const pal=PALETTES[palKey];
+  const pal=PALETTES[palKey]||PALETTES.convergence;
 
   paintGround(hctx,W,H,pal.ground);
   yield;
@@ -1394,6 +1404,401 @@ function* generate(seed,fmtKey,palKey,dyn,statusCb,prog={},directives){
 }
 
 /* =========================================================
+   the silk wing — embroidered carrés in the manner of Hermès
+   ========================================================= */
+const SCARF_PALETTES={
+  flamme:{name:"Flamme",note:"Hermès orange · gold · indigo",
+    ground:"#f4ecda",border:"#d4551a",gold:"#c08a2a",
+    threads:["#8a2f10","#2b4c6f","#f0e9d8"],
+    swatches:["#d4551a","#c08a2a","#8a2f10","#2b4c6f"]},
+  marine:{name:"Marine",note:"navy · gold · ivory · lacquer",
+    ground:"#13294a",border:"#0c1b32",gold:"#cda23a",
+    threads:["#b8332a","#e9e2cf","#5b86b5"],
+    swatches:["#13294a","#cda23a","#b8332a","#e9e2cf"]},
+  emeraude:{name:"Émeraude",note:"emerald · blush · jade · gold",
+    ground:"#0e5440",border:"#093a2c",gold:"#caa43c",
+    threads:["#e7b9b0","#7fcaab","#efe6cf"],
+    swatches:["#0e5440","#caa43c","#e7b9b0","#7fcaab"]},
+  noir:{name:"Noir",note:"black · gold · porcelain · lacquer",
+    ground:"#191611",border:"#0d0b08",gold:"#cfa53d",
+    threads:["#ece6d6","#9c9384","#b8332a"],
+    swatches:["#191611","#cfa53d","#ece6d6","#b8332a"]},
+  poudre:{name:"Poudre",note:"blush · plum · dove · old gold",
+    ground:"#f4e3dd",border:"#cf9d92",gold:"#b08a3e",
+    threads:["#7d5a64","#9aa6b0","#f6efe3"],
+    swatches:["#ecd9d3","#b08a3e","#7d5a64","#9aa6b0"]}
+};
+const SCARF_MOTIFS={
+  chaine:{name:"Chaîne",note:"anchor chains · rope borders"},
+  cavalcade:{name:"Cavalcade",note:"stirrups · bits · ribbons"},
+  jardin:{name:"Jardin",note:"rosettes · leaf scrolls"}
+};
+
+/* ---- embroidery primitives: every mark is laid as thread ---- */
+function eline(ctx,x1,y1,x2,y2,w,relA){
+  const d=Math.hypot(x2-x1,y2-y1), n=Math.max(1,Math.round(d/(w*.55)));
+  for(let i=0;i<=n;i++){
+    const t=i/n;
+    const x=x1+(x2-x1)*t+R(-.14,.14)*w, y=y1+(y2-y1)*t+R(-.14,.14)*w;
+    stamp(ctx,x,y,w*.5*R(.92,1.08));
+    if((i&1)===0)hstamp(x,y,w*.85,relA===undefined?.07:relA);
+  }
+}
+function earc(ctx,cx,cy,rx,ry,a0,a1,rot,w,relA){
+  const len=Math.abs(a1-a0)*Math.max(rx,ry), n=Math.max(4,Math.round(len/(w*.55)));
+  const cr=Math.cos(rot),sr=Math.sin(rot);
+  for(let i=0;i<=n;i++){
+    const a=a0+(a1-a0)*i/n;
+    const px=Math.cos(a)*rx, py=Math.sin(a)*ry;
+    const x=cx+px*cr-py*sr+R(-.12,.12)*w, y=cy+px*sr+py*cr+R(-.12,.12)*w;
+    stamp(ctx,x,y,w*.5*R(.92,1.08));
+    if((i&1)===0)hstamp(x,y,w*.85,relA===undefined?.07:relA);
+  }
+}
+/* a satin-stitched petal or leaf: parallel threads across a pointed oval */
+function satin(ctx,cx,cy,ang,len,wid,w){
+  const n=Math.max(3,Math.round(len/(w*.72)));
+  const ca=Math.cos(ang),sa=Math.sin(ang);
+  for(let i=0;i<=n;i++){
+    const t=i/n;
+    const half=Math.sin(Math.PI*t)*wid*.5;
+    const bx=cx+ca*len*t, by=cy+sa*len*t;
+    eline(ctx,bx-sa*half,by+ca*half,bx+sa*half,by-ca*half,w,.05);
+  }
+}
+function knot(ctx,x,y,r){
+  for(let i=0;i<6;i++)stamp(ctx,x+R(-.4,.4)*r,y+R(-.4,.4)*r,r*R(.45,.7));
+  hstamp(x,y,r*1.4,.15);
+}
+function withSym(ctx,n,cx,cy,fn){
+  for(let k=0;k<n;k++){
+    ctx.save();
+    ctx.translate(cx,cy);ctx.rotate(k*2*Math.PI/n);ctx.translate(-cx,-cy);
+    fn(k);
+    ctx.restore();
+  }
+}
+
+/* ---- the motif vocabulary ---- */
+function mLink(ctx,x,y,s,w){ // two interlocked stitched rings
+  earc(ctx,x-s*.32,y,s*.42,s*.30,0,6.2832,.35,w);
+  earc(ctx,x+s*.32,y,s*.42,s*.30,0,6.2832,-.35,w);
+}
+function mAnchor(ctx,x,y,s,w){
+  earc(ctx,x,y-s*.62,s*.16,s*.16,0,6.2832,0,w);          // ring
+  eline(ctx,x,y-s*.46,x,y+s*.42,w*1.1);                  // shank
+  eline(ctx,x-s*.34,y-s*.18,x+s*.34,y-s*.18,w);          // stock
+  earc(ctx,x,y+s*.10,s*.46,s*.36,.45,2.69,0,w*1.1);      // flukes
+}
+function mStirrup(ctx,x,y,s,w){
+  earc(ctx,x,y-s*.08,s*.40,s*.46,Math.PI,2*Math.PI,0,w*1.1); // arch
+  eline(ctx,x-s*.40,y-s*.08,x-s*.34,y+s*.34,w);
+  eline(ctx,x+s*.40,y-s*.08,x+s*.34,y+s*.34,w);
+  eline(ctx,x-s*.40,y+s*.36,x+s*.40,y+s*.36,w*1.2);      // tread
+}
+function mBit(ctx,x,y,s,w){
+  earc(ctx,x,y,s*.42,s*.42,0,6.2832,0,w);
+  eline(ctx,x-s*.58,y,x+s*.58,y,w*1.1);
+  knot(ctx,x-s*.58,y,w*1.1);knot(ctx,x+s*.58,y,w*1.1);
+}
+function mHorseshoe(ctx,x,y,s,w){
+  earc(ctx,x,y,s*.45,s*.5,-.5,3.64,0,w*1.3);
+  for(let i=0;i<5;i++){
+    const a=-.3+i*.85;
+    knot(ctx,x+Math.cos(a)*s*.45,y+Math.sin(a)*s*.5,w*.8);
+  }
+}
+function mRosette(ctx,x,y,s,w,petalFill,centerFill){
+  ctx.fillStyle=petalFill;
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4+R(-.06,.06);
+    satin(ctx,x+Math.cos(a)*s*.14,y+Math.sin(a)*s*.14,a,s*.4,s*.24,w);
+  }
+  ctx.fillStyle=centerFill;
+  knot(ctx,x,y,w*1.7);
+}
+function mLeafStem(ctx,x,y,s,ang,w,leafFill,stemFill){
+  ctx.fillStyle=stemFill;
+  earc(ctx,x,y+s*.5,s*.9,s*.55,-1.95,-1.15,ang,w);
+  ctx.fillStyle=leafFill;
+  const ca=Math.cos(ang),sa=Math.sin(ang);
+  for(let i=0;i<3;i++){
+    const t=-.55+i*.42;
+    const lx=x+ca*t*s, ly=y+sa*t*s;
+    satin(ctx,lx,ly,ang+(i%2?1.15:-1.15),s*.34,s*.18,w);
+  }
+}
+function mRibbon(ctx,x,y,s,w){
+  earc(ctx,x-s*.3,y,s*.32,s*.2,2.6,5.9,0,w);
+  earc(ctx,x+s*.3,y,s*.32,s*.2,-.5,2.7,0,w);
+  satin(ctx,x,y,R(0,6.28),s*.2,s*.12,w*.9);
+}
+
+/* ---- the carré itself ---- */
+function* scarfPhase(seed,palKey,motifKey,statusCb,prog){
+  rnd=mulberry32(seed);
+  const S=LONG_EDGE;
+  hi.width=S;hi.height=S;
+  const W=S,H=S,u=S/1000;
+  const pal=SCARF_PALETTES[palKey]||SCARF_PALETTES.flamme;
+  const motif=(motifKey in SCARF_MOTIFS)?motifKey:"chaine";
+
+  hctx.fillStyle=pal.ground;
+  hctx.fillRect(0,0,S,S);
+
+  /* height field starts as silk twill: fine diagonal ribs */
+  const hm=document.createElement("canvas");
+  hm.width=Math.max(2,Math.ceil(S/2));
+  hm.height=Math.max(2,Math.ceil(S/2));
+  const hmx=hm.getContext("2d");
+  hmx.fillStyle="#000";hmx.fillRect(0,0,hm.width,hm.height);
+  hmx.globalCompositeOperation="lighter";
+  hmx.save();
+  hmx.translate(hm.width/2,hm.height/2);
+  hmx.rotate(Math.PI/4);
+  const D=Math.ceil(Math.hypot(hm.width,hm.height));
+  const pitch=Math.max(3,Math.round(2.1*u));
+  hmx.fillStyle="rgba(255,255,255,.008)";
+  for(let y=-D;y<=D;y+=pitch)hmx.fillRect(-D,y,2*D,1);
+  hmx.restore();
+  hmx.setTransform(.5,0,0,.5,0,0);
+  REL=hmx;RELU=u;
+  LIGHT_ANG=-2.356+R(-.2,.2);
+  yield;
+
+  const cx2=S/2, cy2=S/2;
+  const b0=.045*S, b1=.155*S;
+  const gold=pal.gold, T0=pal.threads[0], T1=pal.threads[1], T2=pal.threads[2];
+  const wTh=2.3*u;                       // standard thread gauge
+
+  const jobs=[];
+  const J=(c,label,fn)=>jobs.push({c,label,fn});
+
+  /* printed silk border band */
+  J(pal.border,"border silk",function*(){
+    hctx.fillStyle=pal.border;
+    hctx.fillRect(b0,b0,S-2*b0,b1-b0);
+    hctx.fillRect(b0,S-b1,S-2*b0,b1-b0);
+    hctx.fillRect(b0,b1,b1-b0,S-2*b1);
+    hctx.fillRect(S-b1,b1,b1-b0,S-2*b1);
+    yield;
+  });
+  /* gold keylines, stitched */
+  J(gold,"gold keyline",function*(){
+    hctx.fillStyle=gold;
+    for(const r of [b0,b1]){
+      eline(hctx,r,r,S-r,r,wTh);yield;
+      eline(hctx,S-r,r,S-r,S-r,wTh);yield;
+      eline(hctx,S-r,S-r,r,S-r,wTh);yield;
+      eline(hctx,r,S-r,r,r,wTh);yield;
+    }
+    hctx.fillStyle=T2;
+    const r2=b1+.012*S;
+    eline(hctx,r2,r2,S-r2,r2,wTh*.7);
+    eline(hctx,S-r2,r2,S-r2,S-r2,wTh*.7);yield;
+    eline(hctx,S-r2,S-r2,r2,S-r2,wTh*.7);
+    eline(hctx,r2,S-r2,r2,r2,wTh*.7);yield;
+  });
+  /* the border row, repeated on all four sides */
+  J(T2,"border motifs",function*(){
+    const yc=(b0+b1)/2, n=9, x0=b1+.03*S, x1=S-b1-.03*S;
+    for(let side=0;side<4;side++){
+      hctx.save();
+      hctx.translate(cx2,cy2);hctx.rotate(side*Math.PI/2);hctx.translate(-cx2,-cy2);
+      for(let i=0;i<n;i++){
+        const x=x0+(x1-x0)*i/(n-1), sz=.052*S;
+        hctx.fillStyle=T2;
+        if(motif==="chaine")mLink(hctx,x,yc,sz,wTh);
+        else if(motif==="cavalcade")(i%2?mBit:mStirrup)(hctx,x,yc,sz*.9,wTh);
+        else mLeafStem(hctx,x,yc,sz,0,wTh*.9,T2,gold);
+        if((i&2)===0)yield;
+      }
+      hctx.restore();
+      yield;
+    }
+  });
+  /* corner ornaments */
+  J(T1,"corner ornaments",function*(){
+    const cc=(b0+b1)/2;
+    withSym(hctx,4,cx2,cy2,()=>{
+      const x=cc+.035*S, y=cc+.035*S, sz=.075*S;
+      hctx.fillStyle=T1;
+      if(motif==="chaine")mAnchor(hctx,x,y,sz,wTh*1.1);
+      else if(motif==="cavalcade")mHorseshoe(hctx,x,y,sz,wTh);
+      else mRosette(hctx,x,y,sz,wTh,T1,gold);
+    });
+    yield;
+  });
+  /* field sprinkle on a diamond lattice */
+  J(T0,"field lattice",function*(){
+    const step=.075*S, inner=b1+.05*S;
+    hctx.fillStyle=T0;
+    let row=0;
+    for(let y=inner;y<S-inner;y+=step,row++){
+      for(let x=inner+(row%2?step/2:0);x<S-inner;x+=step){
+        if(Math.hypot(x-cx2,y-cy2)<.36*S)continue;
+        if(rnd()<.2)continue;
+        const sz=.012*S;
+        if(motif==="chaine")earc(hctx,x,y,sz,sz,0,6.2832,0,wTh*.6,.05);
+        else if(motif==="cavalcade")earc(hctx,x,y,sz,sz*1.1,-.4,3.54,0,wTh*.6,.05);
+        else knot(hctx,x,y,wTh*.9);
+      }
+      yield;
+    }
+  });
+  /* the medallion: gold rings, radial ornaments, centre rosette */
+  J(gold,"medallion rings",function*(){
+    hctx.fillStyle=gold;
+    earc(hctx,cx2,cy2,.30*S,.30*S,0,6.2832,0,wTh*1.15);yield;
+    earc(hctx,cx2,cy2,.288*S,.288*S,0,6.2832,0,wTh*.7);yield;
+    hctx.fillStyle=T0;
+    earc(hctx,cx2,cy2,.155*S,.155*S,0,6.2832,0,wTh*.7);yield;
+  });
+  J(T0,"radial garland",function*(){
+    withSym(hctx,12,cx2,cy2,(k)=>{
+      const x=cx2, y=cy2-.225*S, sz=.06*S;
+      if(motif==="chaine"){
+        hctx.fillStyle=k%2?T0:T1;
+        earc(hctx,x,y-sz*.3,sz*.34,sz*.24,0,6.2832,0,wTh);
+        earc(hctx,x,y+sz*.3,sz*.34,sz*.24,0,6.2832,1.5708,wTh);
+      }else if(motif==="cavalcade"){
+        hctx.fillStyle=k%2?T0:T2;
+        if(k%2)mRibbon(hctx,x,y,sz,wTh*.9);
+        else mStirrup(hctx,x,y,sz*.8,wTh*.9);
+      }else{
+        hctx.fillStyle=k%2?T0:T1;
+        satin(hctx,x,y+sz*.3,-1.5708,sz*.85,sz*.4,wTh*.9);
+      }
+    });
+    yield;
+  });
+  J(gold,"centre rosette",function*(){
+    mRosette(hctx,cx2,cy2,.11*S,wTh*1.05,T0,gold);yield;
+    hctx.fillStyle=gold;
+    earc(hctx,cx2,cy2,.075*S,.075*S,0,6.2832,0,wTh*.7);
+    withSym(hctx,8,cx2,cy2,()=>{
+      knot(hctx,cx2,cy2-.105*S,wTh*1.3);
+    });
+    yield;
+  });
+  /* satellites between medallion and border */
+  J(T1,"field satellites",function*(){
+    withSym(hctx,8,cx2,cy2,(k)=>{
+      hctx.save();
+      hctx.translate(cx2,cy2);hctx.rotate(Math.PI/8);hctx.translate(-cx2,-cy2);
+      const x=cx2, y=cy2-.40*S, sz=.045*S;
+      hctx.fillStyle=k%2?T1:T2;
+      if(motif==="chaine")mLink(hctx,x,y,sz,wTh*.85);
+      else if(motif==="cavalcade")mBit(hctx,x,y,sz*.9,wTh*.85);
+      else mRosette(hctx,x,y,sz,wTh*.8,k%2?T1:T2,gold);
+      hctx.restore();
+    });
+    yield;
+  });
+
+  const hh=hm.height,hw=hm.width;
+  const finishUnits=Math.ceil(hh/64)+3*(Math.ceil(hh/128)+Math.ceil(hw/128))+2;
+  prog.total=jobs.length*8+finishUnits+16;
+  prog.done=0;
+
+  for(const job of jobs){
+    statusCb(0,0,{c:job.c,scarf:job.label});
+    yield* job.fn();
+    prog.done+=8;
+    yield;
+  }
+  return {hm,W,H,u,pal,motif};
+}
+
+/* silk, not enamel: twill lustre, drape, a hand-rolled hem */
+function* silkFinish(C,statusCb,prog){
+  statusCb(0,0,null);
+  yield* finishRelief(hctx,C.hm,C.W,C.H,C.u,prog);
+  REL=null;
+  const S=C.W,u=C.u;
+
+  /* twill weave in the colour space */
+  const p=Math.max(6,Math.round(3.2*u));
+  const t=document.createElement("canvas");
+  t.width=p;t.height=p;
+  const tc=t.getContext("2d");
+  tc.fillStyle="rgba(255,255,255,.04)";
+  for(let i=0;i<p;i++)tc.fillRect(i,(p-1-i),1,1);
+  tc.fillStyle="rgba(10,8,4,.02)";
+  for(let i=0;i<p;i++)tc.fillRect(i,(Math.floor(p/2)+p-1-i)%p,1,1);
+  hctx.fillStyle=hctx.createPattern(t,"repeat");
+  hctx.fillRect(0,0,S,S);
+  prog.done+=4;yield;
+
+  /* anisotropic sheen: light sweeps along the weave */
+  let g=hctx.createLinearGradient(0,0,S,S);
+  g.addColorStop(0,"rgba(255,255,252,0)");
+  g.addColorStop(.3,"rgba(255,255,252,.09)");
+  g.addColorStop(.52,"rgba(255,255,252,0)");
+  hctx.fillStyle=g;hctx.fillRect(0,0,S,S);
+  g=hctx.createLinearGradient(S,0,0,S);
+  g.addColorStop(.45,"rgba(255,255,252,0)");
+  g.addColorStop(.66,"rgba(255,255,252,.05)");
+  g.addColorStop(.85,"rgba(255,255,252,0)");
+  hctx.fillStyle=g;hctx.fillRect(0,0,S,S);
+  g=hctx.createRadialGradient(S*.92,S*.94,S*.1,S*.92,S*.94,S*.7);
+  g.addColorStop(0,"rgba(15,14,30,.07)");
+  g.addColorStop(1,"rgba(15,14,30,0)");
+  hctx.fillStyle=g;hctx.fillRect(0,0,S,S);
+  prog.done+=4;yield;
+
+  /* the silk does not lie perfectly flat: gentle drape waves */
+  for(let i=0;i<3;i++){
+    const wx=R(.2,.8)*S, wy=R(.2,.8)*S;
+    const ang=Math.PI/4+R(-.35,.35), len=S*R(.4,.75), wid=S*R(.07,.12);
+    const ca=Math.cos(ang),sa=Math.sin(ang);
+    const steps=44;
+    for(let j2=0;j2<=steps;j2++){
+      const tt=(j2/steps-.5)*len;
+      const fade=Math.sin(Math.PI*j2/steps);
+      hctx.fillStyle=`rgba(22,18,40,${(.010*fade).toFixed(4)})`;
+      stamp(hctx,wx+ca*tt-sa*wid*.4,wy+sa*tt+ca*wid*.4,wid*.8);
+      hctx.fillStyle=`rgba(255,255,250,${(.011*fade).toFixed(4)})`;
+      stamp(hctx,wx+ca*tt+sa*wid*.4,wy+sa*tt-ca*wid*.4,wid*.75);
+    }
+    yield;
+  }
+  prog.done+=4;
+
+  /* hand-rolled hem: a soft tube of silk around the perimeter */
+  const inset=.022*S, hw2=6.5*u;
+  const sline=(x1,y1,x2,y2,w,wob)=>{
+    const d=Math.hypot(x2-x1,y2-y1), n=Math.max(2,Math.round(d/(w*.5)));
+    for(let i=0;i<=n;i++){
+      const tt=i/n;
+      stamp(hctx,x1+(x2-x1)*tt+R(-wob,wob),y1+(y2-y1)*tt+R(-wob,wob),w*.5*R(.9,1.1));
+    }
+  };
+  const ring=(r,w,wob)=>{
+    sline(r,r,S-r,r,w,wob);sline(S-r,r,S-r,S-r,w,wob);
+    sline(S-r,S-r,r,S-r,w,wob);sline(r,S-r,r,r,w,wob);
+  };
+  hctx.fillStyle="rgba(18,12,6,.18)";
+  ring(inset,hw2*1.5,1.4*u);yield;
+  hctx.fillStyle="rgba(255,255,250,.26)";
+  ring(inset+hw2*.9,hw2*.8,1.0*u);yield;
+  hctx.fillStyle="rgba(18,12,6,.12)";
+  ring(inset+hw2*1.8,hw2*.55,1.0*u);
+  /* hem stitches, picked in gold */
+  hctx.fillStyle=C.pal.gold;
+  const sr=inset+hw2*3, stepS=11*u;
+  for(let x=sr;x<S-sr;x+=stepS){stamp(hctx,x,sr,1.1*u);stamp(hctx,x,S-sr,1.1*u);}
+  for(let y=sr;y<S-sr;y+=stepS){stamp(hctx,sr,y,1.1*u);stamp(hctx,S-sr,y,1.1*u);}
+  prog.done+=4;yield;
+}
+
+function* scarfGenerate(seed,palKey,motifKey,statusCb,prog={}){
+  if(prog.total===undefined){prog.total=1;prog.done=0;}
+  const C=yield* scarfPhase(seed,palKey,motifKey,statusCb,prog);
+  yield* silkFinish(C,statusCb,prog);
+}
+
+/* =========================================================
    the AI art director — Claude looks, judges, commissions
    ========================================================= */
 let aiAvailable=true;   // flips off for the session on the first failure
@@ -1463,7 +1868,9 @@ Up to 5 actions aimed at the weak regions (x,y = centre of the region, r = its r
 
 /* the curator writes the wall label for the finished work */
 async function askStory(title){
-  const txt=`Write 2–3 sentences of museum wall-label text interpreting the meaning of this drip painting, titled "${title}". Evocative but grounded in what is actually visible, in the voice of a 1950s abstract-expressionism curator. No preamble — the sentences only.`;
+  const txt=state.mode==="scarf"
+    ?`Write 2–3 sentences of boutique catalogue text interpreting this hand-embroidered silk twill carré, titled "${title}". Evocative but grounded in what is actually visible — its motifs, colourway and craft — in the voice of a great French maison. No preamble — the sentences only.`
+    :`Write 2–3 sentences of museum wall-label text interpreting the meaning of this drip painting, titled "${title}". Evocative but grounded in what is actually visible, in the voice of a 1950s abstract-expressionism curator. No preamble — the sentences only.`;
   const out=await askClaude([
     {type:"image",source:{type:"base64",media_type:"image/jpeg",data:snapshotForAI()}},
     {type:"text",text:txt}
@@ -1552,11 +1959,19 @@ function startGeneration(opts={}){
   state.frameSeed=(Math.random()*0x7fffffff)|0;
   if(entry){ /* rehang a work from the ledge */
     state.seed=entry.seed;
-    state.format=entry.format;
-    state.palette=entry.palette;
+    state.mode=entry.mode==="scarf"?"scarf":"pollock";
+    if(state.mode==="scarf"){
+      state.format="square";
+      state.scarfPalette=entry.palette in SCARF_PALETTES?entry.palette:"flamme";
+      state.motif=entry.motif in SCARF_MOTIFS?entry.motif:"chaine";
+    }else{
+      state.format=entry.format;
+      state.palette=entry.palette;
+    }
     state.dyn=entry.dyn;
     state.title=entry.title;
     state.activeId=entry.id;
+    syncModeUI();
     syncControls();
   }else{
     state.seed=(Math.random()*2**31)|0;
@@ -1568,8 +1983,12 @@ function startGeneration(opts={}){
   dlBtn.disabled=true;
 
   titleInput.value=state.title;
-  document.getElementById("pMedium").textContent=PALETTES[state.palette].medium;
-  document.getElementById("pDims").textContent=FORMATS[state.format].dims;
+  const SC=state.mode==="scarf";
+  if(SC)state.format="square";
+  document.getElementById("pMedium").textContent=
+    SC?"Silk twill carré, hand-embroidered":PALETTES[state.palette].medium;
+  document.getElementById("pDims").textContent=
+    SC?"90 × 90 cm, hand-rolled hem":FORMATS[state.format].dims;
   markActiveThumb();
 
   setStory(entry?entry.story||"":"");
@@ -1586,8 +2005,11 @@ function startGeneration(opts={}){
     lastStatus=now;
     statusEl.innerHTML=entry
       ?`<span class="dot"></span>Rehanging <b>${esc(state.title)}</b>…`
-      :L?`<span class="dot"></span>Pouring — ${colorName(L)} in <b>${L.c}</b>`
-        :`<span class="dot"></span>Raking light over the wet enamel…`;
+      :L?(L.scarf
+          ?`<span class="dot"></span>Embroidering — ${L.scarf} in <b>${L.c}</b>`
+          :`<span class="dot"></span>Pouring — ${colorName(L)} in <b>${L.c}</b>`)
+        :SC?`<span class="dot"></span>Pressing the silk, raking the light…`
+           :`<span class="dot"></span>Raking light over the wet enamel…`;
   };
 
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1616,8 +2038,16 @@ function startGeneration(opts={}){
   });
 
   (async()=>{
-    const aiLive=state.ai&&aiAvailable&&!entry&&!reduce;
-    if(entry||!state.ai){
+    const aiLive=state.ai&&aiAvailable&&!entry&&!reduce&&!SC;
+    if(SC){
+      /* the silk wing: deterministic, perfectly symmetric — no director */
+      const it=scarfGenerate(state.seed,
+        entry?entry.palette:state.scarfPalette,
+        entry?entry.motif:state.motif,
+        statusCb,prog);
+      it.next(); layoutView();
+      await runGen(it,!fast);
+    }else if(entry||!state.ai){
       /* one deterministic run: paint, replayed director rounds, varnish */
       const it=generate(state.seed,state.format,state.palette,state.dyn,
                         statusCb,prog,state.directives);
@@ -1677,8 +2107,8 @@ function startGeneration(opts={}){
     }
     statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download.${aiNote}`;
 
-    /* the curator writes the wall label */
-    if(aiLive&&aiAvailable&&!state.story){
+    /* the curator writes the wall label (both wings) */
+    if(state.ai&&aiAvailable&&!entry&&!reduce&&!state.story){
       try{
         statusEl.innerHTML+=` <span style="opacity:.7">The curator is writing the label…</span>`;
         state.story=await askStory(state.title);
@@ -1710,9 +2140,11 @@ function makeThumb(){
 async function addToGallery(){
   const entry={
     id:state.activeId, seed:state.seed, format:state.format,
-    palette:state.palette, dyn:state.dyn, title:state.title,
+    palette:state.mode==="scarf"?state.scarfPalette:state.palette,
+    dyn:state.dyn, title:state.title, mode:state.mode,
     thumb:makeThumb()
   };
+  if(state.mode==="scarf")entry.motif=state.motif;
   if(state.directives.length)entry.directives=state.directives;
   if(state.story)entry.story=state.story;
   if(LEDGE_MODE==="artifact"){
@@ -1799,7 +2231,42 @@ titleInput.addEventListener("keydown",e=>{if(e.key==="Enter")titleInput.blur();}
 
 function syncControls(){
   setChoice("format",state.format,document.getElementById("formatChips"));
-  setChoice("palette",state.palette,document.getElementById("paletteChips"));
+  setChoice("palette",
+    state.mode==="scarf"?state.scarfPalette:state.palette,
+    document.getElementById("paletteChips"));
+  setChoice("motif",state.motif,document.getElementById("motifChips"));
+}
+
+/* the two wings of the atelier share one set of controls */
+function syncModeUI(){
+  const SC=state.mode==="scarf";
+  document.getElementById("fieldFormat").hidden=SC;
+  document.getElementById("fieldMotif").hidden=!SC;
+  document.getElementById("lab-palette").textContent=SC?"Colourway":"Enamel palette";
+  document.getElementById("regen").textContent=SC?"Commission a new carré":"Pour a new painting";
+  document.querySelectorAll("#collChips .chip").forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.k===state.mode)));
+  buildPaletteChips();
+}
+
+function buildPaletteChips(){
+  const pWrap=document.getElementById("paletteChips");
+  pWrap.innerHTML="";
+  const src=state.mode==="scarf"?SCARF_PALETTES:PALETTES;
+  for(const [k,p] of Object.entries(src)){
+    const b=document.createElement("button");
+    b.className="chip";b.type="button";b.dataset.k=k;
+    const sw=p.swatches.map(c=>`<i style="background:${c}"></i>`).join("");
+    b.innerHTML=`<span class="sw">${sw}</span><span>${p.name}<small>${p.note}</small></span>`;
+    b.addEventListener("click",()=>{
+      if(state.mode==="scarf")state.scarfPalette=k;else state.palette=k;
+      setChoice("__noop",k,pWrap);
+      startGeneration();
+    });
+    pWrap.appendChild(b);
+  }
+  setChoice("__noop",
+    state.mode==="scarf"?state.scarfPalette:state.palette,pWrap);
 }
 
 /* =========================================================
@@ -2094,15 +2561,35 @@ function buildChips(){
     b.addEventListener("click",()=>{setChoice("format",k,fWrap);startGeneration();});
     fWrap.appendChild(b);
   }
-  const pWrap=document.getElementById("paletteChips");
-  for(const [k,p] of Object.entries(PALETTES)){
+  const cWrap=document.getElementById("collChips");
+  const colls=[
+    ["pollock","Jackson Pollock","enamel pours on canvas"],
+    ["scarf","Hermès Scarves","embroidered silk carrés"]
+  ];
+  for(const [k,label,sub] of colls){
     const b=document.createElement("button");
     b.className="chip";b.type="button";b.dataset.k=k;
-    const sw=p.swatches.map(c=>`<i style="background:${c}"></i>`).join("");
-    b.innerHTML=`<span class="sw">${sw}</span><span>${p.name}<small>${p.note}</small></span>`;
-    b.addEventListener("click",()=>{setChoice("palette",k,pWrap);startGeneration();});
-    pWrap.appendChild(b);
+    b.innerHTML=`<span>${label}<small>${sub}</small></span>`;
+    b.addEventListener("click",()=>{
+      if(state.mode===k)return;
+      state.mode=k;
+      syncModeUI();
+      startGeneration();
+    });
+    cWrap.appendChild(b);
   }
+
+  buildPaletteChips();
+
+  const mWrap=document.getElementById("motifChips");
+  for(const [k,m] of Object.entries(SCARF_MOTIFS)){
+    const b=document.createElement("button");
+    b.className="chip";b.type="button";b.dataset.k=k;
+    b.innerHTML=`<span>${m.name}<small>${m.note}</small></span>`;
+    b.addEventListener("click",()=>{setChoice("motif",k,mWrap);startGeneration();});
+    mWrap.appendChild(b);
+  }
+  setChoice("motif",state.motif,mWrap);
   const aWrap=document.getElementById("aiChips");
   const aiDefs=[
     ["off","Off","procedural engine only"],
@@ -2141,7 +2628,7 @@ function syncAIChips(){
 }
 
 function setChoice(key,val,wrap){
-  state[key]=val;
+  if(key!=="__noop")state[key]=val;
   wrap.querySelectorAll(".chip").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===val));
 }
 
@@ -2155,6 +2642,7 @@ setChoice("palette",state.palette,document.getElementById("paletteChips"));
 setChoice("frame",state.frame,document.getElementById("frameChips"));
 renderRail();
 syncAIChips();
+syncModeUI();
 (async()=>{
   if(LEDGE_MODE!=="artifact"){
     /* probe the API once: present and healthy -> communal remote mode */

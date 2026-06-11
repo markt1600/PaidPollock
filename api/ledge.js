@@ -11,9 +11,11 @@
  * Without a configured store the endpoint answers 503 and the front end
  * falls back gracefully to localStorage.
  */
-const KEY = "drip-atelier-ledge-v1";
+const KEY = "drip-atelier-ledge-v2";
 const FORMATS = ["square", "classic", "pano", "portrait"];
 const PALETTES = ["convergence", "number31", "lavender", "bluepoles", "onyx"];
+const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
+const MOTIFS = ["chaine", "cavalcade", "jardin"];
 
 function env(name, alt) {
   return process.env[name] || process.env[alt] || "";
@@ -39,14 +41,22 @@ function sanitize(e) {
   let thumb = typeof e.thumb === "string" && e.thumb.startsWith("data:image/") ? e.thumb : "";
   if (thumb.length > 150000) thumb = "";
   if (!id || !Number.isFinite(seed)) return null;
-  if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
+  const mode = e.mode === "scarf" ? "scarf" : "pollock";
+  if (mode === "scarf") {
+    if (!SCARF_PALETTES.includes(e.palette)) return null;
+  } else {
+    if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
+  }
   const out = {
-    id, seed,
-    format: e.format,
+    id, seed, mode,
+    format: mode === "scarf" ? "square" : e.format,
     palette: e.palette,
     dyn: Number.isFinite(dyn) ? Math.min(1, Math.max(0, dyn)) : 0.6,
     title, thumb
   };
+  if (mode === "scarf") {
+    out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
+  }
   if (typeof e.story === "string" && e.story.trim()) {
     out.story = e.story.trim().slice(0, 600);
   }

@@ -1,4 +1,4 @@
-# The Drip Atelier
+# The Atelier
 
 A generative drip-painting studio in the manner of Jackson Pollock. Pure static
 HTML/JS — no build step, no dependencies, ready for Vercel.
@@ -116,6 +116,35 @@ ledge itself is capped at five entries server-side.
   name follows it onto the ledge and into the download filename.
 - Five enamel palettes inspired by the classic canon. Each work gets a museum
   placard with a generated title and physical dimensions.
+
+## The silk wing — embroidered carrés
+
+A **Collection** chooser at the top of the controls switches between the
+two wings. *Jackson Pollock* (the default) is the painting studio.
+*Hermès Scarves* commissions square silk twill carrés, 90 × 90 cm, in the
+classic carré grammar: printed border band with stitched gold keylines, a
+motif row repeated on all four sides, corner ornaments, a diamond field
+lattice, gold medallion rings with a twelve-fold radial garland, and a
+satin-stitched centre rosette.
+
+- **Motif families** — *Chaîne* (interlocking anchor chains, corner
+  anchors), *Cavalcade* (stirrups, snaffle bits, horseshoes, ribbons) and
+  *Jardin* (rosettes, leaf scrolls, french-knot buds).
+- **Colourways** — Flamme, Marine, Émeraude, Noir and Poudre, each a
+  ground + border + gold + three thread colours.
+- **Embroidery, not flat print** — every mark is laid as thread: stem
+  stitches, satin-stitch petals, french knots — each raising the height
+  field so the relief lighting renders raised cord with shadows and
+  catch-lights.
+- **Silk realism** — a diagonal twill weave in both relief and colour,
+  anisotropic sheen sweeps, gentle drape shading, and a hand-rolled hem
+  with picked gold hem stitches around the perimeter.
+
+Carrés are square only (the format chooser hides), fully seeded and
+deterministic, live on the communal ledge alongside the paintings
+(server-sanitised mode/motif), and the AI curator writes their labels in
+the voice of a great maison. The live AI *director* applies only to the
+painting wing — a carré's symmetry is already its discipline.
 
 ## AI art director (optional, default off)
 
