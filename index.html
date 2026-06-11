@@ -1571,6 +1571,8 @@ function startGeneration(opts={}){
   setStory(entry?entry.story||"":"");
   state.directives=entry?(entry.directives||[]):[];
   state.story=entry?(entry.story||""):"";
+  state.aiVerdicts=0;
+  state.aiError="";
 
   const prog={total:1,done:0};
   let lastStatus=0;
@@ -1629,8 +1631,12 @@ function startGeneration(opts={}){
           statusEl.innerHTML=`<span class="dot"></span>The director steps back to consider the canvas…`;
           let verdict=null;
           try{verdict=await askDirector(C.pal,round,prevNote);}
-          catch(e){aiAvailable=false;}
+          catch(e){
+            aiAvailable=false;
+            state.aiError=(e&&e.message)||"unreachable";
+          }
           if(myId!==genId)return;
+          if(verdict)state.aiVerdicts=(state.aiVerdicts||0)+1;
           if(!verdict||verdict.satisfied||!verdict.actions.length)break;
           prevNote=verdict.note;
           state.directives.push(verdict.actions);
@@ -1645,7 +1651,17 @@ function startGeneration(opts={}){
 
     state.done=true;
     dlBtn.disabled=false;
-    statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download.`;
+    /* say plainly whether the director was really in the room */
+    let aiNote="";
+    if(aiLive){
+      if(!aiAvailable&&state.aiError)
+        aiNote=` <span style="color:#c97f63">AI director unreachable (${esc(state.aiError)}) — poured procedurally. On Vercel: is ANTHROPIC_API_KEY set?</span>`;
+      else if(state.directives.length)
+        aiNote=` Directed by Claude — ${state.directives.length} round${state.directives.length>1?"s":""} of touch-ups.`;
+      else if(state.aiVerdicts)
+        aiNote=` The director approved the pour on first look.`;
+    }
+    statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download.${aiNote}`;
 
     /* the curator writes the wall label */
     if(aiLive&&aiAvailable&&!state.story){
@@ -1655,7 +1671,10 @@ function startGeneration(opts={}){
         if(myId!==genId)return;
         setStory(state.story);
         statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download.`;
-      }catch(e){aiAvailable=false;}
+      }catch(e){
+        aiAvailable=false;
+        statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download. <span style="color:#c97f63">(curator's label unavailable: ${esc((e&&e.message)||"unreachable")})</span>`;
+      }
     }
     if(!entry)addToGallery();
   })();
