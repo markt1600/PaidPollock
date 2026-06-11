@@ -133,18 +133,35 @@ satin-stitched centre rosette.
 - **Colourways** — Flamme, Marine, Émeraude, Noir and Poudre, each a
   ground + border + gold + three thread colours.
 - **Embroidery, not flat print** — every mark is laid as thread: stem
-  stitches, satin-stitch petals, french knots — each raising the height
-  field so the relief lighting renders raised cord with shadows and
-  catch-lights.
+  stitches, satin-stitch petals with darker couched outlines, layered
+  double rosettes, french knots — each raising the height field so the
+  relief lighting renders raised cord with shadows and catch-lights, and
+  every stitch run carries its own mercerised catch-light glints.
+- **Worked in every zone** — a diaper pattern inside the border band, a
+  gold rope braid riding the inner keyline, gold pips between border
+  motifs, lozenge cartouches framing the corner ornaments, a scalloped
+  and knot-ringed medallion, a sixteen-fold radial garland, an inner
+  ornament ring, twin satellite rings in the corner pockets, and a
+  cross-stitch lattice filling the field.
 - **Silk realism** — a diagonal twill weave in both relief and colour,
   anisotropic sheen sweeps, gentle drape shading, and a hand-rolled hem
   with picked gold hem stitches around the perimeter.
 
-Carrés are square only (the format chooser hides), fully seeded and
-deterministic, live on the communal ledge alongside the paintings
-(server-sanitised mode/motif), and the AI curator writes their labels in
-the voice of a great maison. The live AI *director* applies only to the
-painting wing — a carré's symmetry is already its discipline.
+Carrés are square only (the format chooser hides; likewise the motif
+chooser hides in the painting wing), fully seeded and deterministic, live
+on the communal ledge alongside the paintings (server-sanitised
+mode/motif/design), and the AI curator writes their labels in the voice
+of a great maison.
+
+**The AI illustrator** — with the AI toggle on, each fresh carré begins
+with Claude composing a figurative centrepiece as a constrained stroke
+drawing (polylines, arcs, satin patches, french knots in the colourway's
+threads — nautical subjects for Chaîne, equestrian for Cavalcade,
+botanical for Jardin, with optional mirror symmetry), and the atelier
+embroiders whatever it draws in place of the house rosette. The sanitised
+design is recorded in the recipe, so illustrated carrés rehang
+pixel-identically with no API call. The live AI *director* still applies
+only to the painting wing — a carré's symmetry is already its discipline.
 
 ## AI art director (optional, default off)
 

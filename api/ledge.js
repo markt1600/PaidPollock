@@ -56,6 +56,37 @@ function sanitize(e) {
   };
   if (mode === "scarf") {
     out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
+    if (e.design && Array.isArray(e.design.strokes)) {
+      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
+      const strokes = [];
+      for (const st of e.design.strokes.slice(0, 80)) {
+        if (!st || typeof st !== "object") continue;
+        const c = Math.min(3, Math.max(0, st.c | 0));
+        const w = cl(st.w, 1, 3);
+        if (st.t === "line" && Array.isArray(st.pts)) {
+          const pts = st.pts.slice(0, 24)
+            .filter(p => Array.isArray(p) && p.length >= 2)
+            .map(p => [cl(p[0], -1, 1), cl(p[1], -1, 1)]);
+          if (pts.length > 1) strokes.push({ t: "line", c, w, pts });
+        } else if (st.t === "arc") {
+          strokes.push({ t: "arc", c, w, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
+            rx: cl(st.rx, .01, 1), ry: cl(st.ry, .01, 1),
+            a0: cl(st.a0, -360, 360), a1: cl(st.a1, -360, 360), rot: cl(st.rot, -360, 360) });
+        } else if (st.t === "satin") {
+          strokes.push({ t: "satin", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
+            ang: cl(st.ang, -360, 360), len: cl(st.len, .02, .7), wid: cl(st.wid, .01, .4) });
+        } else if (st.t === "knot") {
+          strokes.push({ t: "knot", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .08) });
+        }
+      }
+      if (strokes.length) {
+        out.design = {
+          subject: String(e.design.subject || "").slice(0, 48),
+          mirror: !!e.design.mirror,
+          strokes
+        };
+      }
+    }
   }
   if (typeof e.story === "string" && e.story.trim()) {
     out.story = e.story.trim().slice(0, 600);
