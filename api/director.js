@@ -10,7 +10,10 @@
  * prompt, capped tokens, a server-pinned model — and checks the Origin.
  * It cannot be repurposed as a general Claude proxy.
  */
-const MODEL = "claude-sonnet-4-20250514";
+/* Model fallback: Anthropic retires model IDs over time; a retired ID
+ * answers 404. Try newest-first so the proxy keeps working as the
+ * platform moves. */
+const MODELS = ["claude-sonnet-4-6", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514"];
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -58,19 +61,23 @@ module.exports = async (req, res) => {
     if (!txt) return res.status(400).json({ error: "bad request" });
 
     const maxTokens = Math.min(800, Math.max(1, (body.max_tokens | 0) || 300));
-    const upstream = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: maxTokens,
-        messages: [{ role: "user", content: img ? [img, txt] : [txt] }]
-      })
-    });
+    let upstream = null;
+    for (const model of MODELS) {
+      upstream = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [{ role: "user", content: img ? [img, txt] : [txt] }]
+        })
+      });
+      if (upstream.status !== 404) break;   // 404 = model retired; try next
+    }
     const data = await upstream.json().catch(() => ({}));
     return res.status(upstream.status).json(data);
   } catch (err) {

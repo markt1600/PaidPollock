@@ -1413,24 +1413,28 @@ function snapshotForAI(){
    directly (no key); elsewhere the bundled /api/director proxy carries
    the request with the server-side key. First success is remembered. */
 let AI_ROUTE=null;   // "direct" | "proxy"
+let AI_MODEL=null;   // remembered after the first success
+const AI_MODELS=["claude-sonnet-4-6","claude-sonnet-4-5-20250929","claude-sonnet-4-20250514"];
 async function askClaude(content,maxTokens){
-  const body=JSON.stringify({
-    model:"claude-sonnet-4-20250514",
-    max_tokens:maxTokens,
-    messages:[{role:"user",content}]
-  });
   const routes=AI_ROUTE?[AI_ROUTE]:["direct","proxy"];
   let lastErr=new Error("ai unavailable");
   for(const route of routes){
-    try{
-      const r=await fetch(
-        route==="direct"?"https://api.anthropic.com/v1/messages":"/api/director",
-        {method:"POST",headers:{"Content-Type":"application/json"},body});
-      if(!r.ok)throw new Error(route+" "+r.status);
-      const data=await r.json();
-      AI_ROUTE=route;
-      return (data.content||[]).map(b=>b.type==="text"?b.text:"").join("");
-    }catch(e){lastErr=e;}
+    /* the proxy pins and falls back across models server-side, so it
+       needs one attempt; the direct route walks the list itself */
+    const models=route==="proxy"?[AI_MODELS[0]]
+                :AI_MODEL?[AI_MODEL]:AI_MODELS;
+    for(const model of models){
+      try{
+        const r=await fetch(
+          route==="direct"?"https://api.anthropic.com/v1/messages":"/api/director",
+          {method:"POST",headers:{"Content-Type":"application/json"},
+           body:JSON.stringify({model,max_tokens:maxTokens,messages:[{role:"user",content}]})});
+        if(!r.ok)throw new Error(route+" "+r.status);
+        const data=await r.json();
+        AI_ROUTE=route; AI_MODEL=model;
+        return (data.content||[]).map(b=>b.type==="text"?b.text:"").join("");
+      }catch(e){lastErr=e;}
+    }
   }
   throw lastErr;
 }
@@ -1656,7 +1660,7 @@ function startGeneration(opts={}){
     if(aiLive){
       if(!aiAvailable&&state.aiError){
         const hint=/404/.test(state.aiError)
-          ?"The /api/director function isn't in this deployment — upload the full folder including api/."
+          ?"Endpoint or model not found — deploy the latest build (it falls back across model versions)."
           :/503/.test(state.aiError)
           ?"Set ANTHROPIC_API_KEY in the project's environment variables and redeploy."
           :/401/.test(state.aiError)
