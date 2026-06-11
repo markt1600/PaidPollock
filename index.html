@@ -1654,8 +1654,18 @@ function startGeneration(opts={}){
     /* say plainly whether the director was really in the room */
     let aiNote="";
     if(aiLive){
-      if(!aiAvailable&&state.aiError)
-        aiNote=` <span style="color:#c97f63">AI director unreachable (${esc(state.aiError)}) — poured procedurally. On Vercel: is ANTHROPIC_API_KEY set?</span>`;
+      if(!aiAvailable&&state.aiError){
+        const hint=/404/.test(state.aiError)
+          ?"The /api/director function isn't in this deployment — upload the full folder including api/."
+          :/503/.test(state.aiError)
+          ?"Set ANTHROPIC_API_KEY in the project's environment variables and redeploy."
+          :/401/.test(state.aiError)
+          ?"The API key is invalid — check it copied completely."
+          :/429/.test(state.aiError)
+          ?"The API key works but the account is rate-limited or out of credits."
+          :"Check the network and the deployment.";
+        aiNote=` <span style="color:#c97f63">AI director unreachable (${esc(state.aiError)}) — poured procedurally. ${hint}</span>`;
+      }
       else if(state.directives.length)
         aiNote=` Directed by Claude — ${state.directives.length} round${state.directives.length>1?"s":""} of touch-ups.`;
       else if(state.aiVerdicts)
