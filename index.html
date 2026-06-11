@@ -161,6 +161,21 @@ main::after{ /* faint floor line */
   transition:padding .2s;
   line-height:0;
 }
+.framewrap::before{ /* a warm halo that breathes while Claude is thinking */
+  content:"";position:absolute;inset:-9px;z-index:0;pointer-events:none;
+  border-radius:3px;
+  box-shadow:0 0 0 2px rgba(216,166,84,.55), 0 0 36px 8px rgba(216,166,84,.42);
+  opacity:0;
+  transition:opacity .6s ease;
+}
+.framewrap.ai-thinking::before{
+  opacity:1;
+  animation:aiPulse 2.2s ease-in-out infinite;
+}
+@keyframes aiPulse{0%,100%{opacity:.22}50%{opacity:.9}}
+@media (prefers-reduced-motion: reduce){
+  .framewrap.ai-thinking::before{animation:none;opacity:.55}
+}
 .framewrap::after{ /* the room's light falls from above */
   content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
   background:linear-gradient(to bottom,
@@ -2345,6 +2360,11 @@ async function askStory(title){
   return out.trim().slice(0,600);
 }
 
+function setAIThinking(on){
+  const w=document.getElementById("framewrap");
+  if(w)w.classList.toggle("ai-thinking",!!on);
+}
+
 function setStory(text){
   const el=document.getElementById("story");
   el.hidden=!text;
@@ -2464,6 +2484,7 @@ function startGeneration(opts={}){
   state.aiVerdicts=0;
   state.aiError="";
   if(!entry)state.design=null;
+  setAIThinking(false);
 
   const prog={total:1,done:0};
   let lastStatus=0;
@@ -2513,8 +2534,10 @@ function startGeneration(opts={}){
       let design=entry?(entry.design||null):null;
       if(!entry&&state.ai&&aiAvailable&&!reduce){
         statusEl.innerHTML=`<span class="dot"></span>The illustrator sketches a centrepiece…`;
+        setAIThinking(true);
         try{design=await askIllustrator(state.scarfPalette,state.motif);}
         catch(e){aiAvailable=false;state.aiError=(e&&e.message)||"unreachable";}
+        finally{setAIThinking(false);}
         if(myId!==genId)return;
       }
       state.design=design;
@@ -2540,12 +2563,14 @@ function startGeneration(opts={}){
         let prevNote="";
         for(let round=0;round<3;round++){
           statusEl.innerHTML=`<span class="dot"></span>The director steps back to consider the canvas…`;
+          setAIThinking(true);
           let verdict=null;
           try{verdict=await askDirector(C.pal,round,prevNote);}
           catch(e){
             aiAvailable=false;
             state.aiError=(e&&e.message)||"unreachable";
           }
+          finally{setAIThinking(false);}
           if(myId!==genId)return;
           if(verdict)state.aiVerdicts=(state.aiVerdicts||0)+1;
           if(!verdict||verdict.satisfied||!verdict.actions.length)break;
@@ -2594,6 +2619,7 @@ function startGeneration(opts={}){
     if(state.ai&&aiAvailable&&!entry&&!reduce&&!state.story){
       try{
         statusEl.innerHTML+=` <span style="opacity:.7">The curator is writing the label…</span>`;
+        setAIThinking(true);
         state.story=await askStory(state.title);
         if(myId!==genId)return;
         setStory(state.story);
@@ -2601,7 +2627,7 @@ function startGeneration(opts={}){
       }catch(e){
         aiAvailable=false;
         statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download. <span style="color:#c97f63">(curator's label unavailable: ${esc((e&&e.message)||"unreachable")})</span>`;
-      }
+      }finally{setAIThinking(false);}
     }
     if(!entry)addToGallery();
   })();
