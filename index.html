@@ -1542,15 +1542,16 @@ function mHorseshoe(ctx,x,y,s,w){
     knot(ctx,x+Math.cos(a)*s*.45,y+Math.sin(a)*s*.5,w*.8);
   }
 }
-function mRosette(ctx,x,y,s,w,petalFill,centerFill){
+function mRosette(ctx,x,y,s,w,petalFill,centerFill,nP){
+  const N2=nP||8;
   ctx.fillStyle=petalFill;
-  for(let i=0;i<8;i++){
-    const a=i*Math.PI/4+R(-.06,.06);
+  for(let i=0;i<N2;i++){
+    const a=i*2*Math.PI/N2+R(-.06,.06);
     satinO(ctx,x+Math.cos(a)*s*.14,y+Math.sin(a)*s*.14,a,s*.4,s*.24,w);
   }
   ctx.fillStyle=centerFill;
-  for(let i=0;i<8;i++){
-    const a=i*Math.PI/4+Math.PI/8;
+  for(let i=0;i<N2;i++){
+    const a=i*2*Math.PI/N2+Math.PI/N2;
     satin(ctx,x+Math.cos(a)*s*.1,y+Math.sin(a)*s*.1,a,s*.2,s*.12,w*.8);
   }
   knot(ctx,x,y,w*1.7);
@@ -1573,6 +1574,106 @@ function mRibbon(ctx,x,y,s,w){
   earc(ctx,x+s*.3,y,s*.32,s*.2,-.5,2.7,0,w);
   satin(ctx,x,y,R(0,6.28),s*.2,s*.12,w*.9);
 }
+
+/* ---- house emblems: hand-drawn stroke designs, one wing of variety ---- */
+const HOUSE_DESIGNS={
+chaine:[
+ {subject:"Le Vaisseau",mirror:true,strokes:[
+  {t:"line",c:1,w:3,pts:[[0,.52],[.45,.52],[.6,.36],[0,.36]]},
+  {t:"line",c:1,w:2,pts:[[.02,.36],[.02,-.6]]},
+  {t:"satin",c:2,x:.07,y:-.54,ang:78,len:.4,wid:.2},
+  {t:"satin",c:2,x:.09,y:-.26,ang:80,len:.48,wid:.26},
+  {t:"line",c:0,w:1,pts:[[.02,-.6],[.45,.52]]},
+  {t:"line",c:0,w:1,pts:[[.02,-.6],[.3,-.46],[.02,-.3]]},
+  {t:"arc",c:3,w:1,x:0,y:.64,rx:.5,ry:.07,a0:10,a1:170,rot:0},
+  {t:"arc",c:3,w:1,x:.32,y:.7,rx:.22,ry:.05,a0:10,a1:170,rot:0},
+  {t:"knot",c:0,x:.02,y:-.66,r:.03},
+  {t:"line",c:0,w:1,pts:[[.02,-.66],[.16,-.72],[.02,-.7]]}]},
+ {subject:"L'Ancre couronnée",mirror:true,strokes:[
+  {t:"arc",c:1,w:2,x:0,y:-.5,rx:.12,ry:.12,a0:-90,a1:90,rot:0},
+  {t:"line",c:1,w:3,pts:[[0,-.38],[0,.4]]},
+  {t:"line",c:1,w:2,pts:[[0,-.16],[.3,-.16]]},
+  {t:"knot",c:0,x:.3,y:-.16,r:.025},
+  {t:"arc",c:1,w:3,x:0,y:.12,rx:.42,ry:.38,a0:20,a1:88,rot:0},
+  {t:"line",c:1,w:2,pts:[[.42,.22],[.5,.1],[.34,.1]]},
+  {t:"arc",c:0,w:1,x:0,y:0,rx:.66,ry:.66,a0:-58,a1:58,rot:0},
+  {t:"satin",c:2,x:.1,y:-.74,ang:-25,len:.18,wid:.1},
+  {t:"knot",c:0,x:0,y:-.78,r:.03}]},
+ {subject:"La Rose des vents",mirror:true,strokes:[
+  {t:"satin",c:1,x:0,y:-.06,ang:-90,len:.62,wid:.13},
+  {t:"satin",c:1,x:0,y:.06,ang:90,len:.62,wid:.13},
+  {t:"satin",c:1,x:.06,y:0,ang:0,len:.62,wid:.13},
+  {t:"satin",c:0,x:.05,y:-.05,ang:-45,len:.4,wid:.09},
+  {t:"satin",c:0,x:.05,y:.05,ang:45,len:.4,wid:.09},
+  {t:"arc",c:2,w:1,x:0,y:0,rx:.5,ry:.5,a0:-90,a1:90,rot:0},
+  {t:"knot",c:0,x:0,y:0,r:.05},
+  {t:"knot",c:2,x:0,y:-.72,r:.03},{t:"knot",c:2,x:.72,y:0,r:.03},
+  {t:"knot",c:2,x:0,y:.72,r:.03}]}
+],
+cavalcade:[
+ {subject:"Le Fer couronné",mirror:true,strokes:[
+  {t:"arc",c:1,w:3,x:0,y:-.04,rx:.42,ry:.48,a0:-65,a1:115,rot:0},
+  {t:"knot",c:0,x:.4,y:-.2,r:.025},{t:"knot",c:0,x:.44,y:.08,r:.025},
+  {t:"knot",c:0,x:.36,y:.34,r:.025},
+  {t:"line",c:2,w:2,pts:[[-.02,-.52],[.5,.46]]},
+  {t:"knot",c:2,x:.52,y:.5,r:.03},
+  {t:"arc",c:3,w:1,x:.2,y:-.5,rx:.18,ry:.1,a0:160,a1:380,rot:-20},
+  {t:"satin",c:0,x:.06,y:-.66,ang:-30,len:.16,wid:.09},
+  {t:"knot",c:0,x:0,y:-.7,r:.03}]},
+ {subject:"La Roue de calèche",mirror:true,strokes:[
+  {t:"arc",c:1,w:3,x:0,y:0,rx:.6,ry:.6,a0:-90,a1:90,rot:0},
+  {t:"arc",c:0,w:1,x:0,y:0,rx:.52,ry:.52,a0:-90,a1:90,rot:0},
+  {t:"line",c:1,w:2,pts:[[0,-.6],[0,.6]]},
+  {t:"line",c:1,w:2,pts:[[0,0],[.6,0]]},
+  {t:"line",c:1,w:2,pts:[[0,0],[.42,-.42]]},
+  {t:"line",c:1,w:2,pts:[[0,0],[.42,.42]]},
+  {t:"arc",c:0,w:2,x:0,y:0,rx:.1,ry:.1,a0:-90,a1:90,rot:0},
+  {t:"knot",c:0,x:0,y:0,r:.04},
+  {t:"knot",c:2,x:.6,y:0,r:.025},{t:"knot",c:2,x:0,y:-.6,r:.025},
+  {t:"knot",c:2,x:0,y:.6,r:.025}]},
+ {subject:"L'Étrier rubané",mirror:true,strokes:[
+  {t:"arc",c:1,w:3,x:0,y:-.12,rx:.4,ry:.46,a0:180,a1:360,rot:0},
+  {t:"line",c:1,w:2,pts:[[.4,-.12],[.34,.32]]},
+  {t:"line",c:1,w:3,pts:[[0,.34],[.36,.34]]},
+  {t:"arc",c:2,w:2,x:.18,y:-.58,rx:.3,ry:.14,a0:150,a1:390,rot:-15},
+  {t:"satin",c:2,x:.4,y:-.5,ang:35,len:.2,wid:.1},
+  {t:"arc",c:0,w:1,x:0,y:.02,rx:.56,ry:.6,a0:-80,a1:80,rot:0},
+  {t:"knot",c:0,x:0,y:-.62,r:.03},{t:"knot",c:0,x:0,y:.62,r:.03}]}
+],
+jardin:[
+ {subject:"Le Bouquet",mirror:true,strokes:[
+  {t:"line",c:0,w:2,pts:[[.16,.24],[.12,.6],[0,.62]]},
+  {t:"line",c:0,w:1,pts:[[0,.3],[.16,.3]]},
+  {t:"arc",c:2,w:1,x:0,y:.1,rx:.18,ry:.3,a0:-90,a1:20,rot:0},
+  {t:"satin",c:1,x:.2,y:-.3,ang:-60,len:.26,wid:.16},
+  {t:"satin",c:1,x:.42,y:-.06,ang:-15,len:.24,wid:.15},
+  {t:"satin",c:3,x:.05,y:-.5,ang:-90,len:.26,wid:.16},
+  {t:"satin",c:2,x:.3,y:.02,ang:130,len:.2,wid:.1},
+  {t:"satin",c:2,x:.12,y:-.2,ang:75,len:.2,wid:.1},
+  {t:"knot",c:0,x:.2,y:-.42,r:.03},{t:"knot",c:0,x:.46,y:-.18,r:.03},
+  {t:"knot",c:0,x:.05,y:-.62,r:.03}]},
+ {subject:"Le Papillon",mirror:true,strokes:[
+  {t:"satin",c:1,x:.08,y:-.1,ang:-38,len:.5,wid:.34},
+  {t:"satin",c:2,x:.08,y:.08,ang:35,len:.4,wid:.26},
+  {t:"arc",c:0,w:1,x:.3,y:-.26,rx:.26,ry:.2,a0:-160,a1:80,rot:-38},
+  {t:"line",c:1,w:2,pts:[[0,-.3],[0,.3]]},
+  {t:"knot",c:1,x:0,y:-.36,r:.035},
+  {t:"arc",c:1,w:1,x:.08,y:-.5,rx:.12,ry:.14,a0:180,a1:300,rot:0},
+  {t:"knot",c:0,x:.26,y:-.16,r:.03},{t:"knot",c:0,x:.2,y:.14,r:.025},
+  {t:"knot",c:3,x:.4,y:-.06,r:.02}]},
+ {subject:"L'Oiseau chanteur",mirror:false,strokes:[
+  {t:"line",c:0,w:2,pts:[[-.7,.34],[.7,.18]]},
+  {t:"satin",c:2,x:-.5,y:.32,ang:-140,len:.18,wid:.09},
+  {t:"satin",c:2,x:.45,y:.2,ang:-30,len:.18,wid:.09},
+  {t:"satin",c:2,x:.1,y:.28,ang:-100,len:.16,wid:.08},
+  {t:"satin",c:1,x:-.16,y:.1,ang:-28,len:.44,wid:.26},
+  {t:"satin",c:1,x:-.3,y:-.22,ang:160,len:.3,wid:.12},
+  {t:"satin",c:3,x:-.05,y:-.03,ang:-40,len:.22,wid:.1},
+  {t:"arc",c:1,w:2,x:.26,y:-.22,rx:.12,ry:.11,a0:-180,a1:60,rot:0},
+  {t:"line",c:0,w:1,pts:[[.37,-.24],[.5,-.2]]},
+  {t:"knot",c:0,x:.3,y:-.26,r:.02},
+  {t:"knot",c:0,x:-.45,y:-.32,r:.02}]}
+]};
 
 /* ---- the carré itself ---- */
 function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
@@ -1610,6 +1711,32 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   const b0=.045*S, b1=.155*S;
   const gold=pal.gold, T0=pal.threads[0], T1=pal.threads[1], T2=pal.threads[2];
   const wTh=2.3*u;                       // standard thread gauge
+
+  /* every commission rolls its own architecture — seeded, so each work
+     is its own design yet rehangs identically */
+  const V={
+    innerFrame:rnd()<.7,
+    fringe:rnd()<.75,
+    braid:rnd()<.8,
+    knotRing:rnd()<.7,
+    tickBand:rnd()<.65,
+    satTwo:rnd()<.75,
+    rowN:10+((rnd()*5)|0),
+    garN:[12,16,20][(rnd()*3)|0],
+    petals:[8,10,12][(rnd()*3)|0],
+    scStyle:(rnd()*3)|0,                 // 0 scallops, 1 dot pairs, 2 ticks
+    cornerLoz:rnd()<.75
+  };
+  V.medR=V.innerFrame?(.262+rnd()*.012):(.275+rnd()*.04);
+  let centre="design";
+  if(!design||!design.strokes||!design.strokes.length){
+    const r0=rnd();
+    if(r0<.42){
+      const lib=HOUSE_DESIGNS[motif]||HOUSE_DESIGNS.chaine;
+      design={...lib[(rnd()*lib.length)|0]};
+      centre="emblem";
+    }else centre=r0<.62?"star":"rosette";
+  }
 
   const jobs=[];
   const J=(c,label,fn)=>jobs.push({c,label,fn});
@@ -1659,7 +1786,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     eline(hctx,r2,S-r2,r2,r2,wTh*.7);yield;
   });
   /* a scallop fringe hanging from the outer keyline, dots at its feet */
-  J(gold,"band fringe",function*(){
+  if(V.fringe)J(gold,"band fringe",function*(){
     const stepF=.018*S;
     for(let side=0;side<4;side++){
       hctx.save();
@@ -1676,7 +1803,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     yield;
   });
   /* a rope braid running just inside the inner keyline */
-  J(gold,"rope braid",function*(){
+  if(V.braid)J(gold,"rope braid",function*(){
     const rb=b1-.012*S, stepB=.011*S, dl=.0042*S;
     hctx.fillStyle=gold;
     for(let side=0;side<4;side++){
@@ -1691,7 +1818,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   /* the border row, repeated on all four sides */
   J(T2,"border motifs",function*(){
-    const yc=(b0+b1)/2, n=12, x0=b1+.02*S, x1=S-b1-.02*S;
+    const yc=(b0+b1)/2, n=V.rowN, x0=b1+.02*S, x1=S-b1-.02*S;
     for(let side=0;side<4;side++){
       hctx.save();
       hctx.translate(cx2,cy2);hctx.rotate(side*Math.PI/2);hctx.translate(-cx2,-cy2);
@@ -1718,14 +1845,19 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     withSym(hctx,4,cx2,cy2,()=>{
       const x=cc+.035*S, y=cc+.035*S, sz=.075*S;
       /* lozenge cartouche framing the corner piece */
-      hctx.fillStyle=gold;
-      const L2=sz*1.05;
-      eline(hctx,x-L2,y,x,y-L2,wTh*.6,.05);
-      eline(hctx,x,y-L2,x+L2,y,wTh*.6,.05);
-      eline(hctx,x+L2,y,x,y+L2,wTh*.6,.05);
-      eline(hctx,x,y+L2,x-L2,y,wTh*.6,.05);
-      knot(hctx,x-L2,y,wTh);knot(hctx,x+L2,y,wTh);
-      knot(hctx,x,y-L2,wTh);knot(hctx,x,y+L2,wTh);
+      if(V.cornerLoz){
+        hctx.fillStyle=gold;
+        const L2=sz*1.05;
+        eline(hctx,x-L2,y,x,y-L2,wTh*.6,.05);
+        eline(hctx,x,y-L2,x+L2,y,wTh*.6,.05);
+        eline(hctx,x+L2,y,x,y+L2,wTh*.6,.05);
+        eline(hctx,x,y+L2,x-L2,y,wTh*.6,.05);
+        knot(hctx,x-L2,y,wTh);knot(hctx,x+L2,y,wTh);
+        knot(hctx,x,y-L2,wTh);knot(hctx,x,y+L2,wTh);
+      }else{
+        hctx.fillStyle=gold;
+        earc(hctx,x,y,sz*1.1,sz*1.1,0,6.2832,0,wTh*.6,.05);
+      }
       hctx.fillStyle=T1;
       if(motif==="chaine")mAnchor(hctx,x,y,sz,wTh*1.1);
       else if(motif==="cavalcade")mHorseshoe(hctx,x,y,sz,wTh);
@@ -1735,17 +1867,17 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   /* field sprinkle on a diamond lattice */
   J(T0,"field lattice",function*(){
-    const step=.058*S, inner=b1+.045*S;
+    const step=.052*S, inner=b1+.045*S;
     let row=0;
     for(let y=inner;y<S-inner;y+=step,row++){
       let col=0;
       for(let x=inner+(row%2?step/2:0);x<S-inner;x+=step,col++){
-        if(Math.hypot(x-cx2,y-cy2)<.335*S)continue;
+        if(Math.hypot(x-cx2,y-cy2)<(V.medR+.05)*S)continue;
         if(rnd()<.12)continue;
-        const sz=.011*S;
+        const sz=.013*S;
         hctx.fillStyle=(row+col)%2?T0:darkThread(T1);
         if((row+col)%2===0){ /* tiny cross-stitch between marks */
-          const d2=.004*S;
+          const d2=.005*S;
           eline(hctx,x-d2,y-d2,x+d2,y+d2,wTh*.4,.03);
           eline(hctx,x-d2,y+d2,x+d2,y-d2,wTh*.4,.03);
         }else if(motif==="chaine")earc(hctx,x,y,sz,sz,0,6.2832,0,wTh*.6,.05);
@@ -1756,7 +1888,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     }
   });
   /* a fine inner frame stepping toward the medallion */
-  J(T1,"inner frame",function*(){
+  if(V.innerFrame)J(T1,"inner frame",function*(){
     const rf=.205*S;
     hctx.fillStyle=T1;
     eline(hctx,rf,rf,S-rf,rf,wTh*.6,.05);
@@ -1780,41 +1912,66 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   /* the medallion: gold rings, radial ornaments, centre rosette */
   J(gold,"medallion rings",function*(){
+    const MR=V.medR*S;
     hctx.fillStyle=gold;
-    earc(hctx,cx2,cy2,.30*S,.30*S,0,6.2832,0,wTh*1.15);yield;
-    earc(hctx,cx2,cy2,.288*S,.288*S,0,6.2832,0,wTh*.7);yield;
-    /* scallops riding the outer ring */
-    const ns=56;
+    earc(hctx,cx2,cy2,MR,MR,0,6.2832,0,wTh*1.15);yield;
+    earc(hctx,cx2,cy2,MR-.012*S,MR-.012*S,0,6.2832,0,wTh*.7);yield;
+    /* ornament riding the outer ring — style by the roll */
+    const ns=56, ro=MR+.012*S;
     for(let i=0;i<ns;i++){
       const a=i*2*Math.PI/ns;
-      earc(hctx,cx2+Math.cos(a)*.312*S,cy2+Math.sin(a)*.312*S,
-           .012*S,.009*S,Math.PI,2*Math.PI,a+Math.PI/2,wTh*.5,.05);
+      const ox=cx2+Math.cos(a)*ro, oy=cy2+Math.sin(a)*ro;
+      if(V.scStyle===0)
+        earc(hctx,ox,oy,.012*S,.009*S,Math.PI,2*Math.PI,a+Math.PI/2,wTh*.5,.05);
+      else if(V.scStyle===1){
+        if(i%2===0)stamp(hctx,ox,oy,wTh*.55);
+        else knot(hctx,ox,oy,wTh*.7);
+      }else
+        eline(hctx,cx2+Math.cos(a)*(ro-.004*S),cy2+Math.sin(a)*(ro-.004*S),
+                   cx2+Math.cos(a)*(ro+.006*S),cy2+Math.sin(a)*(ro+.006*S),wTh*.45,.04);
       if(i%10===9)yield;
     }
     hctx.fillStyle=T0;
-    earc(hctx,cx2,cy2,.155*S,.155*S,0,6.2832,0,wTh*.7);yield;
-    /* a ring of knots inside the inner circle */
-    for(let i=0;i<32;i++){
-      const a=i*Math.PI/16;
-      knot(hctx,cx2+Math.cos(a)*.137*S,cy2+Math.sin(a)*.137*S,wTh*.9);
+    earc(hctx,cx2,cy2,MR*.52,MR*.52,0,6.2832,0,wTh*.7);yield;
+    if(V.knotRing){
+      for(let i=0;i<32;i++){
+        const a=i*Math.PI/16;
+        knot(hctx,cx2+Math.cos(a)*MR*.46,cy2+Math.sin(a)*MR*.46,wTh*.9);
+      }
+      yield;
     }
-    yield;
-    /* tick band riding between the double rings */
-    hctx.fillStyle=darkThread(gold);
-    for(let i=0;i<64;i++){
-      const a=i*Math.PI/32;
-      const x1=cx2+Math.cos(a)*.291*S, y1=cy2+Math.sin(a)*.291*S;
-      const x2=cx2+Math.cos(a)*.298*S, y2=cy2+Math.sin(a)*.298*S;
-      eline(hctx,x1,y1,x2,y2,wTh*.45,.04);
-      if(i%16===15)yield;
+    if(V.tickBand){
+      hctx.fillStyle=darkThread(gold);
+      for(let i=0;i<64;i++){
+        const a=i*Math.PI/32;
+        eline(hctx,cx2+Math.cos(a)*(MR-.009*S),cy2+Math.sin(a)*(MR-.009*S),
+                   cx2+Math.cos(a)*(MR-.002*S),cy2+Math.sin(a)*(MR-.002*S),wTh*.45,.04);
+        if(i%16===15)yield;
+      }
+      yield;
     }
-    yield;
   });
   /* ---- the illustrated centrepiece, when a designer has drawn one ---- */
   const THREADS=[gold,T0,T1,T2];
+  if(centre==="star")J(T0,"compass star",function*(){
+    const MR=V.medR*S;
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4, long2=(i%2===0);
+      hctx.fillStyle=long2?T0:gold;
+      satinO(hctx,cx2+Math.cos(a)*MR*.1,cy2+Math.sin(a)*MR*.1,a,
+             MR*(long2?.72:.44),MR*(long2?.16:.1),wTh*.9);
+      if(i%4===3)yield;
+    }
+    hctx.fillStyle=T1;
+    earc(hctx,cx2,cy2,MR*.28,MR*.28,0,6.2832,0,wTh*.7);
+    hctx.fillStyle=gold;
+    knot(hctx,cx2,cy2,wTh*2);
+    withSym(hctx,8,cx2,cy2,()=>{knot(hctx,cx2,cy2-MR*.84,wTh*1.1);});
+    yield;
+  });
   if(design&&design.strokes&&design.strokes.length){
     J(gold,"illustrated centrepiece",function*(){
-      const RAD=.255*S;
+      const RAD=V.medR*S*.95;
       const draw=()=>{
         let i=0;
         for(const st of design.strokes){
@@ -1846,20 +2003,20 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
       }
     });
   }
-  if(!design||!design.strokes||!design.strokes.length)
+  if(centre==="rosette")
   J(T0,"radial garland",function*(){
     /* interstitial sprigs between the main radials */
-    withSym(hctx,16,cx2,cy2,()=>{
+    withSym(hctx,V.garN,cx2,cy2,()=>{
       hctx.save();
-      hctx.translate(cx2,cy2);hctx.rotate(Math.PI/16);hctx.translate(-cx2,-cy2);
+      hctx.translate(cx2,cy2);hctx.rotate(Math.PI/V.garN);hctx.translate(-cx2,-cy2);
       hctx.fillStyle=gold;
-      const y=cy2-.245*S;
+      const y=cy2-V.medR*S*.82;
       satin(hctx,cx2,y,-1.5708,.018*S,.009*S,wTh*.55);
       knot(hctx,cx2,y+.012*S,wTh*.7);
       hctx.restore();
     });
-    withSym(hctx,16,cx2,cy2,(k)=>{
-      const x=cx2, y=cy2-.225*S, sz=.06*S;
+    withSym(hctx,V.garN,cx2,cy2,(k)=>{
+      const x=cx2, y=cy2-V.medR*S*.75, sz=V.medR*S*.24;
       if(motif==="chaine"){
         hctx.fillStyle=k%2?T0:T1;
         earc(hctx,x,y-sz*.3,sz*.34,sz*.24,0,6.2832,0,wTh);
@@ -1875,9 +2032,9 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     });
     yield;
   });
-  if(!design||!design.strokes||!design.strokes.length)
+  if(centre==="rosette")
   J(gold,"centre rosette",function*(){
-    mRosette(hctx,cx2,cy2,.11*S,wTh*1.05,T0,gold);yield;
+    mRosette(hctx,cx2,cy2,V.medR*S*.4,wTh*1.05,T0,gold,V.petals);yield;
     hctx.fillStyle=gold;
     earc(hctx,cx2,cy2,.075*S,.075*S,0,6.2832,0,wTh*.7);
     withSym(hctx,8,cx2,cy2,()=>{
@@ -1888,7 +2045,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   /* a fine inner ring of small ornaments just off the medallion */
   J(gold,"inner ring",function*(){
     withSym(hctx,16,cx2,cy2,(k)=>{
-      const x=cx2, y=cy2-.345*S, sz=.016*S;
+      const x=cx2, y=cy2-(V.medR+.045)*S, sz=.016*S;
       hctx.fillStyle=k%2?gold:T0;
       if(motif==="chaine")earc(hctx,x,y,sz,sz*.75,0,6.2832,0,wTh*.55,.05);
       else if(motif==="cavalcade")knot(hctx,x,y,wTh*1.1);
@@ -1909,7 +2066,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
       hctx.restore();
     });
     yield;
-    withSym(hctx,4,cx2,cy2,(k)=>{
+    if(V.satTwo)withSym(hctx,4,cx2,cy2,(k)=>{
       hctx.save();
       hctx.translate(cx2,cy2);hctx.rotate(Math.PI/4);hctx.translate(-cx2,-cy2);
       const x=cx2, y=cy2-.44*S, sz=.03*S;
@@ -2082,7 +2239,7 @@ Up to 5 actions aimed at the weak regions (x,y = centre of the region, r = its r
     {type:"image",source:{type:"base64",media_type:"image/jpeg",data:snapshotForAI()}},
     {type:"text",text:txt}
   ],700);
-  const v=JSON.parse(out.replace(/```json|```/g,"").trim());
+  const v=parseLooseJSON(out);
   const acts=Array.isArray(v.actions)?v.actions.slice(0,5).map(a=>({
     type:["pour","wash","web","splash"].includes(a.type)?a.type:"pour",
     layer:Math.max(0,a.layer|0),
@@ -2090,6 +2247,38 @@ Up to 5 actions aimed at the weak regions (x,y = centre of the region, r = its r
     r:clamp(+a.r||.2,.05,.5)
   })):[];
   return {satisfied:!!v.satisfied,note:String(v.note||"").slice(0,140),actions:acts};
+}
+
+/* a forgiving JSON reader: language models sometimes run out of breath
+   mid-array — trim back to the last complete value and close the
+   brackets that remain open */
+function parseLooseJSON(raw){
+  let str=raw.replace(/```json|```/g,"").trim();
+  const a=str.indexOf("{");
+  if(a>0)str=str.slice(a);
+  str=str.replace(/:\s*\./g,":0.")          // tolerate .5 for 0.5
+       .replace(/:\s*-\./g,":-0.")          // and -.25 for -0.25
+       .replace(/,\s*([}\]])/g,"$1");       // and trailing commas
+  try{return JSON.parse(str);}catch(e){}
+  for(let attempt=0;attempt<3;attempt++){
+    const cut=Math.max(str.lastIndexOf("}"),str.lastIndexOf("]"));
+    if(cut<0)break;
+    str=str.slice(0,cut+1);
+    /* close whatever is still open, ignoring brackets inside strings */
+    let inStr=false, esc2=false; const stack=[];
+    for(const ch of str){
+      if(esc2){esc2=false;continue;}
+      if(ch==="\\"){esc2=true;continue;}
+      if(ch==='"'){inStr=!inStr;continue;}
+      if(inStr)continue;
+      if(ch==="{"||ch==="[")stack.push(ch);
+      else if(ch==="}"||ch==="]")stack.pop();
+    }
+    const closed=str+stack.reverse().map(c=>c==="{"?"}":"]").join("");
+    try{return JSON.parse(closed);}catch(e){}
+    str=str.slice(0,-1);
+  }
+  throw new Error("unparseable design");
 }
 
 /* the illustrator: Claude composes a figurative centrepiece as strokes,
@@ -2139,9 +2328,9 @@ Stroke types:
 {"t":"arc","c":0-3,"w":1-3,"x":..,"y":..,"rx":..,"ry":..,"a0":deg,"a1":deg,"rot":deg} — a stitched elliptical arc.
 {"t":"satin","c":0-3,"x":..,"y":..,"ang":deg,"len":..,"wid":..} — a filled satin-stitch leaf/petal/patch from (x,y) along ang.
 {"t":"knot","c":0-3,"x":..,"y":..,"r":..} — a french knot (eyes, studs, buds).
-Up to 75 strokes. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
-  const out=await askClaude([{type:"text",text:txt}],1600);
-  return sanitizeDesign(JSON.parse(out.replace(/```json|```/g,"").trim()));
+Use 15–40 well-chosen strokes — fewer, stronger strokes beat many weak ones, and the whole reply must stay compact. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
+  const out=await askClaude([{type:"text",text:txt}],3000);
+  return sanitizeDesign(parseLooseJSON(out));
 }
 
 /* the curator writes the wall label for the finished work */

@@ -130,6 +130,15 @@ satin-stitched centre rosette.
 - **Motif families** — *Chaîne* (interlocking anchor chains, corner
   anchors), *Cavalcade* (stirrups, snaffle bits, horseshoes, ribbons) and
   *Jardin* (rosettes, leaf scrolls, french-knot buds).
+- **Every commission rolls its own architecture** — seeded variety in the
+  centrepiece (layered rosette with radial garland, compass star, or one
+  of nine hand-drawn house emblems: ships, crowned anchors, compass
+  roses, horseshoe crests, carriage wheels, beribboned stirrups,
+  bouquets, butterflies, songbirds), medallion radius, garland count
+  (12/16/20), petal count, border-row count, ring ornament style
+  (scallops, dots or ticks), and the presence of the inner frame, fringe,
+  braid, knot ring, tick band, satellites and corner cartouches. Same
+  recipe, same pixels; new seed, new design.
 - **Colourways** — Flamme, Marine, Émeraude, Noir and Poudre, each a
   ground + border + gold + three thread colours.
 - **Embroidery, not flat print** — every mark is laid as thread: stem
@@ -160,7 +169,9 @@ threads — nautical subjects for Chaîne, equestrian for Cavalcade,
 botanical for Jardin, with optional mirror symmetry), and the atelier
 embroiders whatever it draws in place of the house rosette. The sanitised
 design is recorded in the recipe, so illustrated carrés rehang
-pixel-identically with no API call. The live AI *director* still applies
+pixel-identically with no API call. Design replies pass through a
+forgiving JSON reader (token-budget truncation is trimmed back to the
+last complete stroke and re-closed) with a 3,000-token budget. The live AI *director* still applies
 only to the painting wing — a carré's symmetry is already its discipline.
 
 ## AI art director (optional, default off)

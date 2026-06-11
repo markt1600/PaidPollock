@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
     }
     if (!txt) return res.status(400).json({ error: "bad request" });
 
-    const maxTokens = Math.min(2000, Math.max(1, (body.max_tokens | 0) || 300));
+    const maxTokens = Math.min(3200, Math.max(1, (body.max_tokens | 0) || 300));
     let upstream = null;
     for (const model of MODELS) {
       upstream = await fetch("https://api.anthropic.com/v1/messages", {
