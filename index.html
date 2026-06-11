@@ -144,6 +144,7 @@ main::after{ /* faint floor line */
   pointer-events:none;
 }
 .hang{display:flex;flex-direction:column;align-items:center;gap:26px;max-width:100%;max-height:100%;position:relative}
+.hang>*{flex-shrink:0} /* a long label must never crush into the placard */
 .hang::before{ /* the spot pools on the wall behind the piece */
   content:"";position:absolute;z-index:0;pointer-events:none;
   inset:-14% -18% 30% -18%;
@@ -271,9 +272,11 @@ canvas#view{display:block;background:#e7e0cd}
   button.chip{padding:9px 10px;font-size:13px}
   .chip small{font-size:10.5px}
   main{
-    padding:26px max(12px,env(safe-area-inset-right)) 110px max(12px,env(safe-area-inset-left));
+    padding:26px max(12px,env(safe-area-inset-right)) 30px max(12px,env(safe-area-inset-left));
     min-height:70vh;min-height:72dvh;
+    overflow:visible;                      /* grow with the page instead of clipping */
   }
+  .rail{position:static;margin-top:30px}   /* in flow: nothing can hide beneath it */
   .placard{padding:11px 16px 10px}
   .rail{justify-content:flex-start;padding-bottom:max(14px,env(safe-area-inset-bottom))}
   .rail button{width:84px}
@@ -2351,13 +2354,20 @@ Use 15–40 well-chosen strokes — fewer, stronger strokes beat many weak ones,
 /* the curator writes the wall label for the finished work */
 async function askStory(title){
   const txt=state.mode==="scarf"
-    ?`Write 2–3 sentences of boutique catalogue text interpreting this hand-embroidered silk twill carré, titled "${title}". Evocative but grounded in what is actually visible — its motifs, colourway and craft — in the voice of a great French maison. No preamble — the sentences only.`
-    :`Write 2–3 sentences of museum wall-label text interpreting the meaning of this drip painting, titled "${title}". Evocative but grounded in what is actually visible, in the voice of a 1950s abstract-expressionism curator. No preamble — the sentences only.`;
+    ?`In one or two short sentences (under 35 words total), give the central meaning of this hand-embroidered silk carré titled "${title}", in the voice of a great French maison. Grounded in what is visible. No preamble — the sentences only.`
+    :`In one or two short sentences (under 35 words total), give the central meaning of this drip painting titled "${title}", in the voice of a 1950s abstract-expressionism curator. Grounded in what is visible. No preamble — the sentences only.`;
   const out=await askClaude([
     {type:"image",source:{type:"base64",media_type:"image/jpeg",data:snapshotForAI()}},
     {type:"text",text:txt}
-  ],300);
-  return out.trim().slice(0,600);
+  ],130);
+  return out.trim().slice(0,320);
+}
+
+/* a single bad reply shouldn't switch the studio's AI off for good:
+   only structural failures (no key, bad key, missing endpoint config)
+   latch the session; everything else retries on the next commission */
+function aiHardFail(e){
+  return /\b(401|403|503)\b/.test(String((e&&e.message)||""));
 }
 
 function setAIThinking(on){
@@ -2536,7 +2546,10 @@ function startGeneration(opts={}){
         statusEl.innerHTML=`<span class="dot"></span>The illustrator sketches a centrepiece…`;
         setAIThinking(true);
         try{design=await askIllustrator(state.scarfPalette,state.motif);}
-        catch(e){aiAvailable=false;state.aiError=(e&&e.message)||"unreachable";}
+        catch(e){
+          state.aiError=(e&&e.message)||"unreachable";
+          if(aiHardFail(e))aiAvailable=false;
+        }
         finally{setAIThinking(false);}
         if(myId!==genId)return;
       }
@@ -2567,8 +2580,8 @@ function startGeneration(opts={}){
           let verdict=null;
           try{verdict=await askDirector(C.pal,round,prevNote);}
           catch(e){
-            aiAvailable=false;
             state.aiError=(e&&e.message)||"unreachable";
+            if(aiHardFail(e))aiAvailable=false;
           }
           finally{setAIThinking(false);}
           if(myId!==genId)return;
@@ -2590,8 +2603,8 @@ function startGeneration(opts={}){
     /* say plainly whether the director was really in the room */
     let aiNote="";
     if(SC&&state.ai&&!entry){
-      if(!aiAvailable&&state.aiError)
-        aiNote=` <span style="color:#c97f63">Illustrator unreachable (${esc(state.aiError)}) — house design used.</span>`;
+      if(state.aiError)
+        aiNote=` <span style="color:#c97f63">Illustrator unavailable this time (${esc(state.aiError)}) — a house design served instead.</span>`;
       else if(state.design)
         aiNote=` Centrepiece illustrated by Claude${state.design.subject?` — “${esc(state.design.subject)}”`:""}.`;
     }
@@ -2625,7 +2638,7 @@ function startGeneration(opts={}){
         setStory(state.story);
         statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download.`;
       }catch(e){
-        aiAvailable=false;
+        if(aiHardFail(e))aiAvailable=false;
         statusEl.innerHTML=`<b>${esc(state.title)}</b> is dry. ${hi.width.toLocaleString()} × ${hi.height.toLocaleString()} px ready to download. <span style="color:#c97f63">(curator's label unavailable: ${esc((e&&e.message)||"unreachable")})</span>`;
       }finally{setAIThinking(false);}
     }
