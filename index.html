@@ -4195,7 +4195,10 @@ function kMix(a,b,t){
   const A=kHex(a),B=kHex(b);
   return `rgb(${Math.round(A[0]+(B[0]-A[0])*t)},${Math.round(A[1]+(B[1]-A[1])*t)},${Math.round(A[2]+(B[2]-A[2])*t)})`;
 }
-function kA(h,al){const c=kHex(h);return `rgba(${c[0]},${c[1]},${c[2]},${al})`;}
+function kA(h,al){
+  if(h[0]!=="#")return h.replace("rgb(","rgba(").replace(")",`,${al})`);
+  const c=kHex(h);return `rgba(${c[0]},${c[1]},${c[2]},${al})`;
+}
 
 /* a soft radial pool of colour — the engine's basic unit of light */
 function kGlow(ctx,x,y,r,h,al,ry){
@@ -4263,8 +4266,9 @@ function kPRect(ctx,x,y,w,h,j,cr){kPoly(ctx,kJit(x,y,w,h,j,cr));ctx.fill();}
    deep desaturated indigo above, warm umber earth below, lamps in
    sodium amber, the store light a quiet green-white — never neon teal */
 const KP={
-  skyTop:"#141e34", skyHz:"#33517a",
-  cityFar:"#28344a", cityMid:"#1b2433",
+  skyTop:"#15303a", skyHz:"#2b5456",
+  cityFaces:["#c9a187","#b58a72","#d4b394","#a18a76","#8f8284","#c2a98c","#867e88","#ad9a7e"],
+  winC:["#ffd9a0","#ffc27e","#f6e6c0","#e8a86a"],
   win:"#e2ae6e",
   neon:["#b86a74","#6fa896","#cfae84","#7e9cb8","#c08458"],
   wall:["#241e17","#383023"],
@@ -4321,79 +4325,107 @@ function kPavers(ctx,x,y,w,h,u){
     py+=sp;row++;
   }
 }
-/* brushy blocking: a region built of visible hard-edged patches */
+/* brushy blocking: SOFT lozenges of tone that melt into the field —
+   the paint flows; nothing boxy survives */
 function kBrush(ctx,x,y,w,h,cols,n,al0,al1,angBias){
   for(let i=0;i<n;i++){
     const px=x+rnd()*w,py=y+rnd()*h;
-    const pw=R(.05,.2)*Math.min(w,h*4),ph=pw*R(.18,.42);
+    const pw=R(.07,.24)*Math.min(w,h*4),ph=pw*R(.16,.34);
+    const c=pick(cols);
     ctx.save();
-    ctx.translate(px,py);ctx.rotate((angBias||0)+R(-.18,.18));
-    ctx.fillStyle=kA(pick(cols),R(al0,al1));
-    ctx.fillRect(-pw/2,-ph/2,pw,ph);
+    ctx.translate(px,py);ctx.rotate((angBias||0)+R(-.15,.15));
+    ctx.scale(1,Math.max(.05,ph/pw));
+    const g=ctx.createRadialGradient(0,0,0,0,0,pw/2);
+    g.addColorStop(0,kA(c,R(al0,al1)));
+    g.addColorStop(1,kA(c,0));
+    ctx.fillStyle=g;
+    ctx.fillRect(-pw/2,-pw/2,pw,pw);
     ctx.restore();
   }
 }
 
-/* the city behind everything: layered towers, lit windows, neon signs,
-   haze between the planes — Tokyo carrying on in the distance */
+/* the city behind everything: a dense warm-pastel carpet of small
+   buildings, window-lit, receding band by band into the teal haze —
+   Tokyo alive to the horizon */
 function kCity(ctx,W,H,horizon,u,hour,maxH){
   const skyHz=KP.skyHz;
-  const neon=KP.neon;
-  const layer=(col,hMul,winP,winCols,signP,jit)=>{
-    let x=-W*.03;
+  /* a few soft clouds drift high over the city */
+  for(let i=0;i<RI(3,6);i++){
+    const cx2=W*rnd(),cy2=horizon*R(.1,.6),cw=W*R(.06,.16);
+    ctx.save();ctx.translate(cx2,cy2);ctx.scale(1,R(.18,.3));
+    const g=ctx.createRadialGradient(0,0,0,0,0,cw/2);
+    g.addColorStop(0,kA("#8fb0aa",R(.05,.1)));g.addColorStop(1,kA("#8fb0aa",0));
+    ctx.fillStyle=g;ctx.fillRect(-cw/2,-cw/2,cw,cw);
+    ctx.restore();
+  }
+  /* three bands of buildings, far to near, each clearer and taller */
+  const bands=[
+    {t:.82,hM:.45,lift:maxH*.22},
+    {t:.52,hM:.7, lift:maxH*.1},
+    {t:.2, hM:1,  lift:0}
+  ];
+  for(const B of bands){
+    const base=horizon-B.lift;
+    let x=-W*.02;
     while(x<W){
-      if(rnd()<.14){x+=W*R(.02,.07);continue;}
-      const bw=W*R(.045,.16);
-      const bh=(H*.03+maxH*Math.pow(rnd(),1.4)*hMul);
-      ctx.fillStyle=kMix(col,skyHz,rnd()*.18);
-      kPRect(ctx,x,horizon-bh,bw,bh+H*.01,jit);
-      if(rnd()<.35)kPRect(ctx,x+bw*R(.1,.6),horizon-bh-H*R(.006,.02),bw*R(.12,.3),H*.03,jit*.8);
-      /* the windows: little squares of life, in loose columns */
-      if(rnd()<winP){
-        const cols2=1+RI(0,2),rows=Math.max(1,Math.round(bh/(H*.028)));
-        for(let c2=0;c2<cols2;c2++){
-          const wx=x+bw*R(.12,.78);
-          for(let r2=0;r2<rows;r2++){
-            if(rnd()>.34)continue;
-            const wy=horizon-bh+r2*H*.028+H*R(0,.008);
-            const wc=pick(winCols);
-            ctx.fillStyle=kA(wc,R(.3,.7));
-            ctx.fillRect(wx,wy,R(2.6,4.4)*u,R(2.2,3.6)*u);
+      if(rnd()<.05){x+=W*R(.005,.02);continue;}
+      const bw=W*R(.014,.05)*(1.15-B.t*.4);
+      const bh=H*.012+maxH*Math.pow(rnd(),2.1)*B.hM*(.5+.5*(1-B.t));
+      /* pastel, but at dusk's value: the face darkens first, then hazes */
+      const dusk=kMix(pick(KP.cityFaces),"#1a1512",R(.5,.62));
+      const face=kMix(dusk,skyHz,Math.min(1,B.t*.55+R(0,.1)));
+      ctx.fillStyle=face;
+      kPRect(ctx,x,base-bh,bw,bh+H*.012,.7,Math.min(3*u,bw*.12));
+      /* the roof's darker cap */
+      ctx.fillStyle=kMix("#221e26",skyHz,B.t*.55);
+      ctx.fillRect(x,base-bh,bw,Math.min(7*u,bh*.14));
+      /* windows: a loose warm grid of small lights */
+      if(rnd()<.92){
+        const cw2=Math.max(5.5*u,bw/RI(2,5)),rh=8*u;
+        const litP=(.32+.2*rnd())*(1-B.t*.5);
+        for(let wy=base-bh+rh*1.1;wy<base-rh*.4;wy+=rh){
+          for(let wx=x+bw*.1;wx<x+bw*.88;wx+=cw2){
+            if(rnd()>litP)continue;
+            ctx.fillStyle=kA(pick(KP.winC),R(.5,.95)*(1-B.t*.5));
+            ctx.fillRect(wx+R(0,1.4)*u,wy+R(0,1.4)*u,R(2.2,3.6)*u,R(2,3.2)*u);
           }
         }
       }
-      /* a vertical neon sign, glowing its colour into the night */
-      if(rnd()<signP){
-        const sx=x+bw*R(.15,.8),sw=R(6,11)*u,sh=H*R(.04,.1);
-        const sy=horizon-bh*R(.35,.85);
-        const sc=pick(neon);
-        ctx.fillStyle=kA(sc,.55);
-        kPRect(ctx,sx,sy,sw,sh,u*.6);
-        ctx.fillStyle="rgba(8,16,18,.6)";
-        const nch=Math.max(2,Math.round(sh/(sw*1.3)));
-        for(let g2=0;g2<nch;g2++)
-          ctx.fillRect(sx+sw*.22,sy+sh*(g2+.32)/nch,sw*.56,sh*.06);
+      /* the odd lit shopfront at street level of the near band */
+      if(B.t<.3&&rnd()<.18){
+        ctx.fillStyle=kA(pick(["#ffce8e","#e8f0d0","#ffb87a"]),.5);
+        ctx.fillRect(x+bw*.12,base-H*.014,bw*.76,H*.012);
+      }
+      /* a vertical sign or a beacon, sparingly, near only */
+      if(B.t<.3&&rnd()<.07){
+        const sc2=pick(KP.neon),sw2=R(5,9)*u,sh3=H*R(.03,.07);
+        ctx.fillStyle=kA(sc2,.55);
+        kPRect(ctx,x+bw*R(.2,.7),base-bh*R(.5,.9),sw2,sh3,.5,2*u);
         ctx.globalCompositeOperation="lighter";
-        kGlow(ctx,sx+sw/2,sy+sh/2,sw*4.4,sc,.15,sh*.85);
+        kGlow(ctx,x+bw*.45,base-bh*.7,sw2*3.6,sc2,.12,sh3*.7);
         ctx.globalCompositeOperation="source-over";
       }
-      /* a beacon blinks at the top of the tallest */
-      if(bh>maxH*.75&&rnd()<.5){
+      if(B.t<.3&&bh>maxH*.7&&rnd()<.4){
         ctx.fillStyle="rgba(214,92,84,.8)";
-        ctx.beginPath();ctx.arc(x+bw*R(.3,.7),horizon-bh-H*.004,1.8*u,0,7);ctx.fill();
+        ctx.beginPath();ctx.arc(x+bw*R(.3,.7),base-bh-H*.003,1.6*u,0,7);ctx.fill();
       }
-      x+=bw+W*R(0,.025);
+      x+=bw+W*R(.0005,.008);
     }
-  };
-  /* far plane first, hazed; then the nearer, darker one */
-  layer(KP.cityFar,1,.5,[KP.win,"#c8d4dc"],.1,u*1.1);
-  const hz=ctx.createLinearGradient(0,horizon-maxH,0,horizon);
-  hz.addColorStop(0,kA(skyHz,0));hz.addColorStop(1,kA(skyHz,.4));
-  ctx.fillStyle=hz;ctx.fillRect(0,horizon-maxH,W,maxH);
-  layer(KP.cityMid,.62,.65,[KP.win,"#d6dee2"],.16,u*1.3);
+    /* the haze settles between this band and the next */
+    if(B.t>.3){
+      const hz=ctx.createLinearGradient(0,base-maxH,0,base);
+      hz.addColorStop(0,kA(skyHz,0));hz.addColorStop(1,kA(skyHz,.28*B.t));
+      ctx.fillStyle=hz;ctx.fillRect(0,base-maxH,W,maxH);
+    }
+  }
+  /* warm breath rises off the lit quarters */
+  ctx.globalCompositeOperation="lighter";
+  for(let i=0;i<RI(5,9);i++)
+    kGlow(ctx,W*rnd(),horizon-maxH*R(.1,.55),W*R(.03,.09),"#ffcf96",R(.04,.08));
+  ctx.globalCompositeOperation="source-over";
   /* the city stands on its own dark edge */
-  ctx.fillStyle="#0e0d10";
-  ctx.fillRect(0,horizon-H*.01,W,H*.013);
+  ctx.fillStyle="#100e0e";
+  ctx.fillRect(0,horizon-H*.008,W,H*.011);
 }
 
 function kRR(ctx,x,y,w,h,r){
@@ -4576,11 +4608,16 @@ function* keitaFinish(C,statusCb,prog){
   hctx.globalCompositeOperation="overlay";
   for(let i=0;i<240;i++){
     const px=rnd()*W,py=rnd()*H;
-    const pw=W*R(.03,.12),ph=pw*R(.2,.5);
+    const pw=W*R(.04,.14),ph=pw*R(.18,.4);
+    const c=pick(["#1e2a38","#3a3226","#243640","#2e2620","#1c2430"]);
     hctx.save();
     hctx.translate(px,py);hctx.rotate(R(-.25,.25));
-    hctx.fillStyle=kA(pick(["#1e2a38","#3a3226","#243640","#2e2620","#1c2430"]),R(.05,.12));
-    hctx.fillRect(-pw/2,-ph/2,pw,ph);
+    hctx.scale(1,Math.max(.05,ph/pw));
+    const g=hctx.createRadialGradient(0,0,0,0,0,pw/2);
+    g.addColorStop(0,kA(c,R(.06,.13)));
+    g.addColorStop(1,kA(c,0));
+    hctx.fillStyle=g;
+    hctx.fillRect(-pw/2,-pw/2,pw,pw);
     hctx.restore();
     if(i%80===79)yield;
   }
@@ -4657,7 +4694,7 @@ function kJihanki(C,statusCb,steps){
     kBrush(hctx,0,skyY,W,groundY-skyY,[wallA,wallB,"#2e2418","#120e08"],150,.03,.08,0);
     if(openSky){
       /* the city carries on behind the lane */
-      kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#22304a"],50,.02,.05,0);
+      kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#1d4248"],50,.03,.06,0);
       kCity(hctx,W,H,skyY,u,hour,H*R(.16,.24));
     }
   }});
@@ -4917,21 +4954,18 @@ function kJihanki(C,statusCb,steps){
       const spread=mw*(0.7+t*2.6);
       const dx=cgx+R(-1,1)*spread;
       const persp=.35+t*1.1;
-      const pw=R(7,30)*u*persp,ph2=R(2,6)*u*persp;
       const close=1-Math.min(1,Math.abs(dx-cgx)/(spread+1));
-      const al=R(.04,.16)*(1-t*.75)*(.4+.6*close);
-      hctx.fillStyle=kA(rnd()<.85?glowH:"#fff6da",al);
-      hctx.fillRect(dx-pw/2,dy,pw,ph2);
+      const al=R(.05,.2)*(1-t*.75)*(.4+.6*close);
+      kGlow(hctx,dx,dy,R(7,26)*u*persp,rnd()<.85?glowH:"#fff6da",al,R(2.4,6)*u*persp);
     }
     hctx.globalCompositeOperation="source-over";
-    /* and a few DARK dapples ride inside the pool, the asphalt's teeth */
+    /* and soft dark passages ride inside the pool, the asphalt's tooth */
     for(let i=0;i<140;i++){
       const t=Math.pow(rnd(),1.5);
       const dy=myb+H*.02+t*(H-myb)*.7;
       const dx=cgx+R(-1,1)*mw*(0.6+t*2);
       const persp=.35+t*1.1;
-      hctx.fillStyle=kA(groundA,R(.1,.3));
-      hctx.fillRect(dx,dy,R(6,22)*u*persp,R(1.6,4.5)*u*persp);
+      kGlow(hctx,dx,dy,R(6,20)*u*persp,groundA,R(.12,.32),R(2,5)*u*persp);
     }
   }});
   if(rnd()<.55)steps.push({label:"posting the lone figure",fn:()=>{
@@ -4970,7 +5004,7 @@ function kDenwa(C,statusCb,steps){
     sg.addColorStop(0,skyA);sg.addColorStop(.7,kMix(skyA,skyB,.55));sg.addColorStop(1,skyB);
     hctx.fillStyle=sg;hctx.fillRect(0,0,W,horizon+2);
     kMottle(hctx,0,0,W,horizon,[skyA,skyB,"#0a2a30"],70,W*.05,W*.2,.1);
-    kBrush(hctx,0,0,W,horizon,[skyA,skyB,"#22304a"],70,.02,.05,0);
+    kBrush(hctx,0,0,W,horizon,[skyA,skyB,"#1d4248"],70,.03,.06,0);
     /* Tokyo across the road: towers, windows, neon */
     kCity(hctx,W,H,horizon,u,"green",H*R(.22,.3));
   }});
@@ -5104,16 +5138,15 @@ function kDenwa(C,statusCb,steps){
       const dx=bx+bw/2+R(-1,1)*spread;
       const persp=.4+t*1.1;
       const close=1-Math.min(1,Math.abs(dx-bx-bw/2)/(spread+1));
-      hctx.fillStyle=kA(rnd()<.8?warm:"#ffe9c4",R(.04,.15)*(1-t*.7)*(.4+.6*close));
-      hctx.fillRect(dx,dy,R(7,26)*u*persp,R(2,5)*u*persp);
+      kGlow(hctx,dx,dy,R(7,24)*u*persp,rnd()<.8?warm:"#ffe9c4",
+        R(.05,.18)*(1-t*.7)*(.4+.6*close),R(2.4,5.6)*u*persp);
     }
     hctx.globalCompositeOperation="source-over";
     for(let i=0;i<90;i++){
       const t=Math.pow(rnd(),1.4);
       const dy=bby+H*.02+t*(H-bby)*.6;
       const dx=bx+bw/2+R(-1,1)*bw*(0.7+t*1.8);
-      hctx.fillStyle=kA(walkA,R(.1,.3));
-      hctx.fillRect(dx,dy,R(6,20)*u,R(1.6,4)*u);
+      kGlow(hctx,dx,dy,R(6,18)*u,walkA,R(.12,.32),R(2,4.4)*u);
     }
     /* far streetlamps down the road, tiny and patient */
     hctx.globalCompositeOperation="lighter";
@@ -5145,8 +5178,8 @@ function kKonbini(C,statusCb,steps){
   const glowH=KP.store;
   /* the store lives on the ground floor of its building */
   const hostY=skyY+H*R(.01,.03);
-  /* the brand's stripes — never quite anyone's trademark */
-  const stripes=pick([["#d8741c","#1a8a5e","#b8252c"],["#1f6cc0","#d8b22c"],["#b8252c","#1f9eb0"],["#1a8a5e","#d8741c"]]);
+  /* the house stripes: orange, green, red on the pale band — always */
+  const stripes=["#e8650f","#0fa066","#cc2f1f"];
   const fasY=skyY+H*R(.13,.19),fasH=H*R(.085,.105);
   const glY=fasY+fasH,glH=groundY-glY;
   const doorX=W*R(.42,.6),doorW=W*R(.085,.105);
@@ -5158,7 +5191,7 @@ function kKonbini(C,statusCb,steps){
     sg.addColorStop(0,skyA);sg.addColorStop(1,skyB);
     hctx.fillStyle=sg;hctx.fillRect(0,0,W,skyY+2);
     kMottle(hctx,0,0,W,skyY,[skyA,skyB],40,W*.06,W*.2,.1);
-    kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#22304a"],50,.02,.05,0);
+    kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#1d4248"],50,.03,.06,0);
     /* the city stacks up behind the store */
     kCity(hctx,W,H,skyY,u,"green",H*R(.14,.2));
   }});
@@ -5209,19 +5242,17 @@ function kKonbini(C,statusCb,steps){
     }
     /* fascia: the lit white band with its stripes */
     const fg=hctx.createLinearGradient(0,fasY,0,fasY+fasH);
-    fg.addColorStop(0,"#f4f6e8");
-    fg.addColorStop(.8,kMix(glowH,"#d8e4d2",.4));
-    fg.addColorStop(1,kMix(glowH,"#90a896",.45));
+    fg.addColorStop(0,"#e9f0dc");
+    fg.addColorStop(.8,"#cfdfc8");
+    fg.addColorStop(1,"#94ac96");
     hctx.fillStyle=fg;
     kPRect(hctx,-u*4,fasY,W+u*8,fasH,1.8*u);
-    const sh2=fasH*.2;
+    /* three stripes and three only: orange, then green, then red */
     stripes.forEach((sc,i)=>{
       hctx.fillStyle=sc;
-      kPRect(hctx,-u*4,fasY+fasH*(.16+i*.26),W+u*8,sh2,1.2*u);
+      kPRect(hctx,-u*4,fasY+fasH*(.2+i*.22),W+u*8,fasH*.15,1*u);
     });
-    hctx.globalCompositeOperation="lighter";
-    kGlow(hctx,W*.5,fasY+fasH*.4,W*.5,"#ffffff",.06,fasH*1.4);
-    hctx.globalCompositeOperation="source-over";
+
     /* the fascia's soft drop shadow onto the glass below */
     const fsh=hctx.createLinearGradient(0,glY,0,glY+glH*.18);
     fsh.addColorStop(0,"rgba(6,18,16,.55)");fsh.addColorStop(1,"rgba(6,18,16,0)");
@@ -5232,20 +5263,30 @@ function kKonbini(C,statusCb,steps){
     /* the glass band: a green-white interior with shelf memories */
     const inset=W*.012;
     const gg=hctx.createLinearGradient(0,glY,0,groundY);
-    gg.addColorStop(0,"#cfe2c8");
-    gg.addColorStop(.6,"#b2cdb4");
-    gg.addColorStop(1,"#7e9a88");
+    gg.addColorStop(0,"#c2d6ba");
+    gg.addColorStop(.6,"#a4c0a6");
+    gg.addColorStop(1,"#74907e");
     hctx.fillStyle=gg;
     kPRect(hctx,inset,glY+glH*.06,W-inset*2,glH*.94,1.5*u);
     /* the ceiling's lamp strips, seen through the glass */
     hctx.fillStyle="rgba(255,255,250,.5)";
     for(let i=0;i<RI(3,5);i++)
       hctx.fillRect(inset+(W-inset*2)*R(.04,.86),glY+glH*R(.07,.13),W*R(.04,.08),glH*.022);
-    /* signage high on the back wall: colour memories */
+    /* the ad band runs below the ceiling: a row of framed panels */
     const prodCols=["#b8252c","#d8741c","#1a8a5e","#1f6cc0","#d8b22c","#a8325e","#1f9eb0","#e9e6da"];
-    for(let i=0;i<RI(5,9);i++){
-      hctx.fillStyle=kA(pick(prodCols),R(.18,.4));
-      hctx.fillRect(inset+(W-inset*2)*rnd()*.92,glY+glH*R(.16,.26),W*R(.012,.03),glH*R(.05,.09));
+    {
+      let ax=inset*2+W*R(0,.03);
+      const ay=glY+glH*.15,ah=glH*.1;
+      while(ax<W-inset*2-W*.04){
+        const aw=W*R(.025,.045);
+        hctx.fillStyle="rgba(238,242,230,.55)";
+        hctx.fillRect(ax,ay,aw,ah);
+        hctx.fillStyle=kA(pick(prodCols),R(.4,.7));
+        hctx.fillRect(ax+aw*.12,ay+ah*.15,aw*.76,ah*.45);
+        hctx.fillStyle="rgba(40,50,44,.4)";
+        hctx.fillRect(ax+aw*.12,ay+ah*.7,aw*R(.4,.7),ah*.12);
+        ax+=aw+W*R(.008,.025);
+      }
     }
     /* shelf rows: gondolas with their boards, dense with goods */
     for(let r2=0;r2<3;r2++){
@@ -5258,13 +5299,32 @@ function kKonbini(C,statusCb,steps){
       hctx.fillRect(inset*2,ry+rh2+glH*.022,W-inset*4,glH*.012);
       let x=inset*2+W*R(0,.015);
       while(x<W-inset*2){
-        const cw=W*R(.005,.014);
-        if(rnd()<.92){
-          hctx.fillStyle=kA(pick(prodCols),R(.45,.9));
-          hctx.fillRect(x,ry+rh2*R(.02,.25),cw,rh2*R(.7,.98));
+        /* goods face out in RUNS of a colour, as a planogram does */
+        const run=RI(2,6),col=pick(prodCols),cw=W*R(.005,.011);
+        const tall=rh2*R(.7,.98),top=ry+rh2*R(.02,.22);
+        for(let r3=0;r3<run&&x<W-inset*2;r3++){
+          if(rnd()<.94){
+            hctx.fillStyle=kA(kMix(col,"#e8e4d4",R(.05,.16)),R(.55,.88));
+            hctx.fillRect(x,top+R(-1,1)*u,cw,tall);
+          }
+          x+=cw+W*R(.0004,.0015);
         }
-        x+=cw+W*R(.0005,.004);
+        x+=W*R(.001,.006);
       }
+      /* a red or yellow price sign hangs over the row here and there */
+      for(let i2=0;i2<RI(1,3);i2++){
+        const px2=inset*2+(W-inset*4)*rnd();
+        hctx.fillStyle=kA(pick(["#d8b22c","#c43a2a"]),R(.65,.9));
+        hctx.fillRect(px2,ry-glH*.012,W*R(.008,.016),glH*.05);
+      }
+    }
+    /* an ATM keeps its pale vigil near the door */
+    if(rnd()<.7){
+      const tx=doorX+doorW*R(1.3,1.7),tw=doorW*.5;
+      hctx.fillStyle="rgba(228,234,224,.75)";
+      kPRect(hctx,tx,glY+glH*.42,tw,glH*.5,.8,3*u);
+      hctx.fillStyle="rgba(40,70,90,.65)";
+      hctx.fillRect(tx+tw*.18,glY+glH*.48,tw*.64,glH*.1);
     }
     /* a magazine rack remembers its colours by the door */
     hctx.fillStyle="rgba(190,205,195,.4)";
@@ -5275,8 +5335,8 @@ function kKonbini(C,statusCb,steps){
     }
     /* the doorway: brightest of all, its floor seen through */
     const dg=hctx.createLinearGradient(0,glY,0,groundY);
-    dg.addColorStop(0,kMix(glowH,"#eef6e4",.7));
-    dg.addColorStop(1,kMix(glowH,"#cfe2c8",.6));
+    dg.addColorStop(0,"#dcebd2");
+    dg.addColorStop(1,"#bcd4b6");
     hctx.fillStyle=dg;
     hctx.fillRect(doorX,glY+glH*.04,doorW,glH*.96);
     hctx.fillStyle="rgba(120,150,135,.4)";
@@ -5288,6 +5348,20 @@ function kKonbini(C,statusCb,steps){
     hctx.fillRect(doorX+doorW,glY+glH*.04,doorW*.05,glH*.96);
     hctx.fillStyle=kA("#fffef2",.55);
     hctx.fillRect(doorX+doorW*.06,groundY-glH*.16,doorW*.88,glH*.16);
+    /* posters stuck on the glass itself, facing the street */
+    for(let i=0;i<RI(4,8);i++){
+      const px2=inset*2+(W-inset*4)*rnd();
+      if(Math.abs(px2-doorX-doorW/2)<doorW*.9)continue;
+      const pw2=W*R(.012,.022),ph2=pw2*R(1.2,1.5);
+      const py2=glY+glH*R(.3,.62);
+      hctx.fillStyle="rgba(240,242,234,.82)";
+      hctx.fillRect(px2,py2,pw2,ph2);
+      hctx.fillStyle=kA(pick(prodCols),.8);
+      hctx.fillRect(px2+pw2*.08,py2+ph2*.08,pw2*.84,ph2*.34);
+      hctx.fillStyle="rgba(50,56,50,.5)";
+      for(let r3=0;r3<3;r3++)
+        hctx.fillRect(px2+pw2*.1,py2+ph2*(.5+r3*.14),pw2*R(.5,.8),ph2*.06);
+    }
     /* mullions over everything */
     hctx.fillStyle="#0a1f1d";
     const nm=7+RI(0,3);
@@ -5342,9 +5416,9 @@ function kKonbini(C,statusCb,steps){
   }});
   steps.push({label:"switching the night shift on",fn:()=>{
     hctx.globalCompositeOperation="lighter";
-    kGlow(hctx,W*.5,fasY+fasH*.5,W*.55,glowH,.1,fasH*2.2);
-    kGlow(hctx,W*.5,glY+glH*.5,W*.6,glowH,.06,glH*1.3);
-    kGlow(hctx,doorX+doorW/2,glY+glH*.5,doorW*3,glowH,.1,glH*1.0);
+    kGlow(hctx,W*.5,fasY+fasH*.5,W*.55,glowH,.04,fasH*1.8);
+    kGlow(hctx,W*.5,glY+glH*.5,W*.6,glowH,.04,glH*1.2);
+    kGlow(hctx,doorX+doorW/2,glY+glH*.5,doorW*3,glowH,.07,glH*1.0);
     /* the pool runs the whole storefront */
     kGlow(hctx,W*.5,groundY+H*.05,W*.52,glowH,.22,H*.13);
     kGlow(hctx,doorX+doorW/2,groundY+H*.045,doorW*3.4,glowH,.26,H*.1);
@@ -5356,15 +5430,13 @@ function kKonbini(C,statusCb,steps){
       const dy=groundY+H*.012+t*(H-groundY)*.85;
       const dx=W*R(.02,.98);
       const persp=.4+t*1.1;
-      const al=R(.03,.13)*(1-t*.7)*(Math.abs(dx-doorX-doorW/2)<W*.18?1.3:.8);
-      hctx.fillStyle=kA(rnd()<.85?glowH:"#fff6da",Math.min(.2,al));
-      hctx.fillRect(dx,dy,R(7,28)*u*persp,R(2,5)*u*persp);
+      const al=R(.04,.16)*(1-t*.7)*(Math.abs(dx-doorX-doorW/2)<W*.18?1.3:.8);
+      kGlow(hctx,dx,dy,R(7,26)*u*persp,rnd()<.85?glowH:"#fff6da",Math.min(.24,al),R(2.4,5.6)*u*persp);
     }
     hctx.globalCompositeOperation="source-over";
     for(let i=0;i<150;i++){
       const t=Math.pow(rnd(),1.4);
-      hctx.fillStyle=kA(groundA,R(.1,.28));
-      hctx.fillRect(W*rnd(),groundY+H*.02+t*(H-groundY)*.7,R(6,22)*u,R(1.6,4.2)*u);
+      kGlow(hctx,W*rnd(),groundY+H*.02+t*(H-groundY)*.7,R(6,20)*u,groundA,R(.12,.3),R(2,4.6)*u);
     }
   }});
   steps.push({label:"posting the night owls",fn:()=>{
