@@ -17,6 +17,7 @@ const PALETTES = ["convergence", "number31", "lavender", "bluepoles", "onyx"];
 const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
 const MOTIFS = ["chaine", "cavalcade", "jardin"];
 const MIRO_PALETTES = ["reve", "constellation", "bleu", "nocturne", "terre"];
+const SUBJECTS = ["visage", "figure", "fleurs", "nature"];
 
 function env(name, alt) {
   return process.env[name] || process.env[alt] || "";
@@ -42,21 +43,24 @@ function sanitize(e) {
   let thumb = typeof e.thumb === "string" && e.thumb.startsWith("data:image/") ? e.thumb : "";
   if (thumb.length > 150000) thumb = "";
   if (!id || !Number.isFinite(seed)) return null;
-  const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro" : "pollock";
+  const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro"
+             : e.mode === "matisse" ? "matisse" : "pollock";
   if (mode === "scarf") {
     if (!SCARF_PALETTES.includes(e.palette)) return null;
   } else if (mode === "miro") {
     if (!FORMATS.includes(e.format) || !MIRO_PALETTES.includes(e.palette)) return null;
+  } else if (mode === "matisse") {
+    if (!FORMATS.includes(e.format) || !SUBJECTS.includes(e.subject)) return null;
   } else {
     if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
   }
   const out = {
     id, seed, mode,
     format: mode === "scarf" ? "square" : e.format,
-    palette: e.palette,
     dyn: Number.isFinite(dyn) ? Math.min(1, Math.max(0, dyn)) : 0.6,
     title, thumb
   };
+  if (mode !== "matisse") out.palette = e.palette;
   if (mode === "scarf") {
     out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
     if (e.design && typeof e.design === "object") {
@@ -103,6 +107,37 @@ function sanitize(e) {
       if (strokes.length) dOut.strokes = strokes;
       if (sat.length) dOut.satellite = sat;
       if (dOut.strokes || dOut.composition || dOut.accents || dOut.satellite) out.design = dOut;
+    }
+  }
+  if (mode === "matisse") {
+    out.subject = e.subject;
+    if (e.design && typeof e.design === "object") {
+      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
+      const dOut = {
+        subject: String(e.design.subject || "").slice(0, 48),
+        mirror: !!e.design.mirror
+      };
+      const strokes = [];
+      for (const st of (Array.isArray(e.design.strokes) ? e.design.strokes : []).slice(0, 48)) {
+        if (!st || typeof st !== "object") continue;
+        const w = cl(st.w, 1, 3);
+        if (st.t === "line" && Array.isArray(st.pts)) {
+          const pts = st.pts.slice(0, 32)
+            .filter(p => Array.isArray(p) && p.length >= 2)
+            .map(p => [cl(p[0], -1, 1), cl(p[1], -1, 1)]);
+          if (pts.length > 1) strokes.push({ t: "line", c: 0, w, pts });
+        } else if (st.t === "arc") {
+          strokes.push({ t: "arc", c: 0, w, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
+            rx: cl(st.rx, .01, 1), ry: cl(st.ry, .01, 1),
+            a0: cl(st.a0, -360, 360), a1: cl(st.a1, -360, 360), rot: cl(st.rot, -360, 360) });
+        } else if (st.t === "satin") {
+          strokes.push({ t: "satin", c: 0, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
+            ang: cl(st.ang, -360, 360), len: cl(st.len, .02, .5), wid: cl(st.wid, .01, .3) });
+        } else if (st.t === "knot") {
+          strokes.push({ t: "knot", c: 0, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .06) });
+        }
+      }
+      if (strokes.length) { dOut.strokes = strokes; out.design = dOut; }
     }
   }
   if (typeof e.story === "string" && e.story.trim()) {

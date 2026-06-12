@@ -1,7 +1,9 @@
 # The Atelier
 
-A generative drip-painting studio in the manner of Jackson Pollock. Pure static
-HTML/JS — no build step, no dependencies, ready for Vercel.
+A generative studio in four wings — Jackson Pollock drip paintings, Joan
+Miró dream paintings, Henri Matisse line drawings, and Hermès-style
+embroidered silk carrés. Pure static HTML/JS — no build step, no
+dependencies, ready for Vercel.
 
 ## Features
 - **Physically simulated pours** — the engine models the artist's hand moving
@@ -153,6 +155,55 @@ the figures.
   to twice and commissions placed touch-ups (stars, discs, blobs, moons,
   lines, dot trails in named colours), recorded for pixel-identical
   rehang; the curator writes the label in a poetic mid-century voice.
+
+## The drawing wing — Henri Matisse
+
+The third collection draws: line drawings in the school of Matisse, where
+the whole subject is carried by a handful of long, confident strokes on
+warm wove paper. There is no palette — in its place a **Subject** chooser:
+
+- **Faces** — the late mask drawings: ONE bold closed egg of a contour
+  holds the whole head (no hair, no neck, no jewellery), and inside it
+  six or seven marks — two brows, one of which flows on into the nose
+  in a single line, the eyes as short heavy dashes, a small wavy mouth.
+  The brush is loaded at the crown and visibly starves on the way
+  round.
+- **Figures** — reclining studies: a small profile head sunk into a
+  cushion, the knot of hair, and THE line — nape, shoulder, the long
+  back, the rise of the hip and the thigh in one continuous sweep.
+- **Flowers** — a vase on a table edge, stems fanning into anemones,
+  tulips, daisies and buds, and the signature broad lobed leaf with its
+  midrib (laid as a solid ink mass in the brush drawings).
+- **Still life** — a footed compotier with fruit looking over the rim, a
+  pitcher, a cloth whose pattern is a running vine, and sometimes a
+  branch leaning in from beyond the sheet.
+
+Every sheet rolls its **medium** from the seed (faces are always brush
+drawings, as the masks were) — pen and Indian ink,
+brush and Indian ink (heavier swells, a dry tail, solid leaves), or
+crayon (grainy, the paper breathing through) — and the placard always
+agrees with the drawing. The line model resamples each smoothed stroke
+and lets the nib's pressure breathe along it; every stroke carries a
+dip of ink that drains with its physical length, so long lines start
+loaded, thin as they dry, and break into bristle streaks where the
+brush starves — pen lines bite a little where they first touch the
+sheet, and ink gathers in a tiny pool at the hardest turns. The drawing unfolds stroke by stroke over the usual three
+seconds, the status line naming each move ("the contour of the cheek",
+"a stem rising"). Drawings take every canvas format at paper scale
+(42–76 cm), titles arrive in French ("Nu allongé II", "Anémones"), and
+the finish is paper, not varnish: a whisper of tooth, a gallery light,
+at most one foxing fleck — none of the oil wing's debris or mottle.
+Framed drawings sit in a wide bevelled paper mat rather than a linen
+liner.
+
+**The AI draughtsman** — with the AI toggle on, Claude takes the pen
+itself: it composes the drawing as a constrained monochrome stroke
+design (long polylines, arcs, small solid-ink leaves, dots; 12–35
+strokes, economy above all, optional mirror symmetry) and the atelier
+inks whatever it draws with the same pen model in place of the house
+study. The sanitised drawing is recorded in the recipe, so AI-drawn
+sheets rehang pixel-identically with no API call, and the curator labels
+the finished sheet in the voice of a curator of modern French drawing.
 
 ## The silk wing — embroidered carrés
 
