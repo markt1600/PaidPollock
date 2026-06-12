@@ -139,6 +139,22 @@ function sanitize(e) {
       }
       if (strokes.length) { dOut.strokes = strokes; out.design = dOut; }
     }
+    if (Array.isArray(e.touches)) {
+      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
+      const seen = {}, touches = [];
+      for (const t of e.touches.slice(0, 16)) {
+        if (!t || typeof t !== "object") continue;
+        const i = t.i | 0;
+        if (i < 0 || i > 63 || seen[i]) continue;
+        seen[i] = 1;
+        const o = { i };
+        if (t.press !== undefined) o.press = cl(t.press, .6, 1.5);
+        if (t.dip !== undefined) o.dip = cl(t.dip, .5, 1.6);
+        if (t.drain !== undefined) o.drain = cl(t.drain, .3, 2.4);
+        if (o.press !== undefined || o.dip !== undefined || o.drain !== undefined) touches.push(o);
+      }
+      if (touches.length) out.touches = touches;
+    }
   }
   if (typeof e.story === "string" && e.story.trim()) {
     out.story = e.story.trim().slice(0, 600);

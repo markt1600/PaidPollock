@@ -169,9 +169,9 @@ warm wove paper. There is no palette — in its place a **Subject** chooser:
   The brush is loaded at the crown and visibly starves on the way
   round.
 - **Flowers** — a vase floating free on the sheet (no table line), a
-  few stems fanning into anemones, tulips, daisies and buds, and the
-  signature broad lobed leaf with its midrib — pure line work, never a
-  filled mass.
+  few stems fanning into anemones, tulips, loose rose spirals and buds
+  (never a star-burst), and the signature broad lobed leaf with its
+  midrib — pure line work, never a filled mass.
 
 Every sheet rolls its **medium** from the seed (faces are always brush
 drawings, as the masks were) — pen and Indian ink,
@@ -196,11 +196,22 @@ liner.
 itself for the flower studies: it composes the drawing as a constrained
 monochrome stroke design (long polylines, arcs, ink dots — outlines
 only, economy above all) and the atelier inks whatever it draws with
-the same pen model in place of the house study. Faces never leave the
-house: the mask grammar is the signature, so it is always drawn by the
-engine. The sanitised drawing is recorded in the recipe, so AI-drawn
-sheets rehang pixel-identically with no API call, and the curator labels
-the finished sheet in the voice of a curator of modern French drawing.
+the same pen model in place of the house study.
+
+**The AI ink master** — faces never leave the house: the mask grammar
+is the signature, so the geometry is always the engine's. Instead, with
+the AI on, Claude becomes the ink master: the finished face goes to it
+with every stroke listed by index, and it may re-ink chosen strokes —
+the weight of the hand (press), how loaded the brush is when the stroke
+begins (dip), and how fast the line dries and fades along its length
+(drain) — up to eight touches, after which the sheet redraws with the
+new hand. The masks live by contrast, and the ink master's job is to
+find it.
+
+Both the sanitised drawing and the ink master's touches are recorded in
+the recipe, so AI-touched sheets rehang pixel-identically with no API
+call, and the curator labels the finished sheet in the voice of a
+curator of modern French drawing.
 
 ## The silk wing — embroidered carrés
 
