@@ -2020,7 +2020,7 @@ function dabCluster(ctx,cx,cy,r,u){
 /* an ink splat with spidery droplets */
 function msplat(ctx,x,y,r,u){
   for(let i=0;i<10;i++)stamp(ctx,x+R(-.3,.3)*r,y+R(-.3,.3)*r,r*R(.2,.42));
-  hstamp(x,y,r*.7,.1);
+  hstamp(x,y,r*.42,.09);
   const n=4+((rnd()*5)|0);
   for(let i=0;i<n;i++){
     const a=R(0,6.28), d=r*R(1,2.6);
@@ -2064,7 +2064,7 @@ function obrush(ctx,pts,w0,taper){
       if(taper&&along>.88)ctx.globalAlpha=ga0*R(.45,.8); /* the brush runs dry */
       stamp(ctx,x,y,w*.5);
       ctx.globalAlpha=ga0;
-      if((j2&1)===0)hstamp(x,y,w*.8,.09);
+      if((j2&1)===0)hstamp(x,y,w*.5,.08);
     }
     run+=d;
   }
@@ -2093,16 +2093,18 @@ function oblob(ctx,cx,cy,r,squash,ang,scrub){
   ctx.moveTo(pts[0][0],pts[0][1]);
   for(const p of pts)ctx.lineTo(p[0],p[1]);
   ctx.closePath();ctx.fill();
-  /* paint body: ridge the edge, settle the middle */
-  for(let i=0;i<pts.length;i+=2)hstamp(pts[i][0],pts[i][1],r*.16,.12);
-  for(let i=0;i<10;i++)hstamp(cx+R(-.5,.5)*r,cy+R(-.5,.5)*r*sq,r*.3,.05);
+  /* paint body: a ridge just inside the edge, depth settling the middle —
+     never embossing the bare paper beyond the paint */
+  for(let i=0;i<pts.length;i+=2)
+    hstamp(cx+(pts[i][0]-cx)*.82,cy+(pts[i][1]-cy)*.82,r*.12,.1);
+  for(let i=0;i<10;i++)hstamp(cx+R(-.45,.45)*r,cy+R(-.45,.45)*r*sq,r*.28,.05);
   return pts;
 }
 function odisc(ctx,cx,cy,r){
   ctx.beginPath();ctx.arc(cx,cy,r,0,6.2832);ctx.fill();
   for(let i=0;i<8;i++){
     const a=i*.785;
-    hstamp(cx+Math.cos(a)*r*.85,cy+Math.sin(a)*r*.85,r*.2,.1);
+    hstamp(cx+Math.cos(a)*r*.68,cy+Math.sin(a)*r*.68,r*.15,.09);
   }
   hstamp(cx,cy,r*.5,.05);
 }
@@ -2111,7 +2113,7 @@ function oring(ctx,cx,cy,r,w){
   for(let i=0;i<=n;i++){
     const a=i/n*6.2832;
     stamp(ctx,cx+Math.cos(a)*r+R(-.08,.08)*w,cy+Math.sin(a)*r+R(-.08,.08)*w,w*.5);
-    if((i&1)===0)hstamp(cx+Math.cos(a)*r,cy+Math.sin(a)*r,w*.8,.08);
+    if((i&1)===0)hstamp(cx+Math.cos(a)*r,cy+Math.sin(a)*r,w*.5,.07);
   }
 }
 function ostar(ctx,cx,cy,r,u){
@@ -2169,8 +2171,8 @@ function omoon(ctx,cx,cy,r,ang){
   }
   ctx.closePath();ctx.fill();
   for(let i=0;i<pts.length;i+=4){
-    const x=cx+pts[i][0]*ca-pts[i][1]*sa, y=cy+pts[i][0]*sa+pts[i][1]*ca;
-    hstamp(x,y,r*.14,.1);
+    const x=cx+(pts[i][0]*ca-pts[i][1]*sa)*.82, y=cy+(pts[i][0]*sa+pts[i][1]*ca)*.82;
+    hstamp(x,y,r*.1,.09);
   }
 }
 function oladder(ctx,cx,cy,h,ang,u){
