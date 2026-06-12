@@ -3608,7 +3608,7 @@ function mline(ctx,raw,w0,opt){
   }
   const brush=MAT_MED==="brush"&&!opt.forcePen;
   const W0=(brush?w0*2.1:w0)*(opt.press||1);
-  const r=mResample(pts,Math.max(.8*u,W0*.32));
+  const r=mResample(pts,Math.max(.7*u,W0*.18));
   if(!r.total)return;
   /* a very slight drift of the whole hand, never a wiggle */
   const ph1=R(0,6.28),ph2=R(0,6.28),amp=brush?.3:.16;
@@ -3634,24 +3634,26 @@ function mline(ctx,raw,w0,opt){
       if(a<.06)w*=.5+.5*Math.pow(a/.06,.7);
     if(taper==="both"||taper==="end")
       if(a>.93)w*=.35+.65*Math.pow((1-a)/.07,.8);
-    let al=brush?R(.86,.98):R(.9,1);
-    if(ld<.45){                                   /* the brush starves     */
-      const dry=ld/.45;
-      al*=.3+.7*dry;
-      if(rnd()<(brush?.5:.3)*(1-dry)){            /* paper flecks through  */
-        if(brush){                                /* …in bristle streaks   */
-          ctx.globalAlpha=ga0*al*R(.5,.85);
-          stamp(ctx,r.pts[i][0]+dox*w,r.pts[i][1]+doy*w,w*R(.16,.3));
-          stamp(ctx,r.pts[i][0]-dox*w*.7,r.pts[i][1]-doy*w*.7,w*R(.12,.25));
+    /* drying ink does not turn grey — the line THINS, its edge roughens,
+       and it breaks into small solid granules with bare paper between */
+    let al=R(.92,1);
+    if(ld<.45){
+      const dry=Math.max(0,ld/.45);
+      w*=.42+.58*dry;                             /* the line starves thin */
+      if(rnd()<(brush?.5:.35)*(1-dry)){           /* paper breaks through  */
+        if(rnd()<.6){                             /* …past a solid granule */
+          ctx.globalAlpha=ga0*R(.72,.95);
+          stamp(ctx,r.pts[i][0]+dox*w,r.pts[i][1]+doy*w,w*R(.16,.34));
         }
         continue;
       }
-      if(brush&&rnd()<.55){                       /* split into strands    */
-        ctx.globalAlpha=ga0*al;
-        stamp(ctx,r.pts[i][0]+dox*w*.6,r.pts[i][1]+doy*w*.6,w*R(.22,.34));
-        stamp(ctx,r.pts[i][0]-dox*w*.5,r.pts[i][1]-doy*w*.5,w*R(.16,.28));
+      if(brush&&rnd()<.5){                        /* split into dark strands */
+        ctx.globalAlpha=ga0*R(.78,.96);
+        stamp(ctx,r.pts[i][0]+dox*w*.55,r.pts[i][1]+doy*w*.55,w*R(.22,.36));
+        stamp(ctx,r.pts[i][0]-dox*w*.45,r.pts[i][1]-doy*w*.45,w*R(.18,.3));
         continue;
       }
+      al*=.78+.22*dry;                            /* barely lighter, never grey */
     }
     ctx.globalAlpha=ga0*al;
     stamp(ctx,r.pts[i][0]+R(-.06,.06)*w,r.pts[i][1]+R(-.06,.06)*w,w*.5);
