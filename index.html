@@ -4223,6 +4223,179 @@ function kMottle(ctx,x,y,w,h,cols,n,rmin,rmax,al){
   }
 }
 
+/* a painter's rectangle: the long runs stay STRAIGHT (only a breath of
+   jitter), but every corner turns ROUND — the hand draws lines true and
+   softens the turns */
+function kJit(x,y,w,h,j,cr){
+  j=j===undefined?1:j;
+  cr=cr===undefined?Math.min(w,h)*.14:cr;
+  cr=Math.max(.5,Math.min(cr,Math.min(w,h)*.42));
+  const J=()=>R(-j,j);
+  const pts=[];
+  const seg=(x0,y0,x1,y1)=>{
+    const L=Math.hypot(x1-x0,y1-y0);
+    const n=Math.max(1,Math.round(L/140));
+    for(let i=0;i<n;i++){
+      const t=i/n;
+      pts.push([x0+(x1-x0)*t+J(),y0+(y1-y0)*t+J()]);
+    }
+  };
+  const arc=(cx2,cy2,a0,a1)=>{
+    for(let i=0;i<=3;i++){
+      const a=a0+(a1-a0)*i/3;
+      pts.push([cx2+Math.cos(a)*cr+J()*.4,cy2+Math.sin(a)*cr+J()*.4]);
+    }
+  };
+  seg(x+cr,y, x+w-cr,y);   arc(x+w-cr,y+cr,-Math.PI/2,0);
+  seg(x+w,y+cr, x+w,y+h-cr); arc(x+w-cr,y+h-cr,0,Math.PI/2);
+  seg(x+w-cr,y+h, x+cr,y+h); arc(x+cr,y+h-cr,Math.PI/2,Math.PI);
+  seg(x,y+h-cr, x,y+cr);   arc(x+cr,y+cr,Math.PI,Math.PI*1.5);
+  return pts;
+}
+function kPoly(ctx,pts){
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
+  ctx.closePath();
+}
+function kPRect(ctx,x,y,w,h,j,cr){kPoly(ctx,kJit(x,y,w,h,j,cr));ctx.fill();}
+
+/* ---- the wing's one palette: Morimoto's muted dusk ----
+   deep desaturated indigo above, warm umber earth below, lamps in
+   sodium amber, the store light a quiet green-white — never neon teal */
+const KP={
+  skyTop:"#141e34", skyHz:"#33517a",
+  cityFar:"#28344a", cityMid:"#1b2433",
+  win:"#e2ae6e",
+  neon:["#b86a74","#6fa896","#cfae84","#7e9cb8","#c08458"],
+  wall:["#241e17","#383023"],
+  ground:["#1c1712","#3b3124"],
+  road:["#141a24","#2b3544"],
+  sodium:"#eeb066",
+  store:"#d7e6c8", machine:"#cfe0e4", booth:"#f2bf78"
+};
+
+/* the signature street lamp: a dark pole carrying one to three warm
+   glowing lanterns */
+function kLamp(ctx,x,baseY,h2,u){
+  ctx.fillStyle="#15110d";
+  kPRect(ctx,x-3.2*u,baseY-h2,6.4*u,h2,.6,2.5*u);
+  const gy=baseY-h2;
+  const n=1+RI(0,2);
+  for(let i=0;i<n;i++){
+    const gx=x+(i-(n-1)/2)*15*u;
+    if(n>1){
+      ctx.fillStyle="#15110d";
+      ctx.fillRect(Math.min(x,gx)-u,gy+1.5*u,Math.abs(gx-x)+2*u,2.2*u);
+    }
+    ctx.fillStyle="#15110d";
+    kPRect(ctx,gx-6*u,gy-13*u,12*u,14*u,.5,3*u);
+    ctx.fillStyle=kA("#ffe5b2",.95);
+    kPRect(ctx,gx-4.6*u,gy-11.6*u,9.2*u,11*u,.4,3*u);
+    ctx.globalCompositeOperation="lighter";
+    kGlow(ctx,gx,gy-6*u,38*u,KP.sodium,.4);
+    kGlow(ctx,gx,gy-6*u,120*u,KP.sodium,.12);
+    ctx.globalCompositeOperation="source-over";
+  }
+  ctx.globalCompositeOperation="lighter";
+  kGlow(ctx,x,baseY,95*u,KP.sodium,.14,42*u);
+  ctx.globalCompositeOperation="source-over";
+}
+
+/* paver work: the warm brick ground his streets stand on */
+function kPavers(ctx,x,y,w,h,u){
+  ctx.strokeStyle="rgba(8,6,4,.3)";
+  let py=y+R(4,12)*u,row=0;
+  while(py<y+h){
+    const sp=(7+ (py-y)/h*16)*u;            /* rows widen toward us */
+    ctx.lineWidth=Math.min(2.2,.8+(py-y)/h*1.6)*u;
+    ctx.beginPath();ctx.moveTo(x,py+R(-1,1)*u);ctx.lineTo(x+w,py+R(-1,1)*u);ctx.stroke();
+    /* a few cross joints, offset every other row */
+    const step=sp*R(2.4,3.4);
+    for(let jx=x+((row%2)?step/2:0)+R(0,step);jx<x+w;jx+=step)
+      if(rnd()<.7){ctx.beginPath();ctx.moveTo(jx,py);ctx.lineTo(jx+R(-2,2)*u,py+sp);ctx.stroke();}
+    /* the odd paver remembers a different firing */
+    if(rnd()<.5){
+      ctx.fillStyle=kA(pick(["#4a3a28","#2a2018","#46362a"]),R(.06,.14));
+      ctx.fillRect(x+rnd()*w,py,step*R(.4,.9),sp);
+    }
+    py+=sp;row++;
+  }
+}
+/* brushy blocking: a region built of visible hard-edged patches */
+function kBrush(ctx,x,y,w,h,cols,n,al0,al1,angBias){
+  for(let i=0;i<n;i++){
+    const px=x+rnd()*w,py=y+rnd()*h;
+    const pw=R(.05,.2)*Math.min(w,h*4),ph=pw*R(.18,.42);
+    ctx.save();
+    ctx.translate(px,py);ctx.rotate((angBias||0)+R(-.18,.18));
+    ctx.fillStyle=kA(pick(cols),R(al0,al1));
+    ctx.fillRect(-pw/2,-ph/2,pw,ph);
+    ctx.restore();
+  }
+}
+
+/* the city behind everything: layered towers, lit windows, neon signs,
+   haze between the planes — Tokyo carrying on in the distance */
+function kCity(ctx,W,H,horizon,u,hour,maxH){
+  const skyHz=KP.skyHz;
+  const neon=KP.neon;
+  const layer=(col,hMul,winP,winCols,signP,jit)=>{
+    let x=-W*.03;
+    while(x<W){
+      if(rnd()<.14){x+=W*R(.02,.07);continue;}
+      const bw=W*R(.045,.16);
+      const bh=(H*.03+maxH*Math.pow(rnd(),1.4)*hMul);
+      ctx.fillStyle=kMix(col,skyHz,rnd()*.18);
+      kPRect(ctx,x,horizon-bh,bw,bh+H*.01,jit);
+      if(rnd()<.35)kPRect(ctx,x+bw*R(.1,.6),horizon-bh-H*R(.006,.02),bw*R(.12,.3),H*.03,jit*.8);
+      /* the windows: little squares of life, in loose columns */
+      if(rnd()<winP){
+        const cols2=1+RI(0,2),rows=Math.max(1,Math.round(bh/(H*.028)));
+        for(let c2=0;c2<cols2;c2++){
+          const wx=x+bw*R(.12,.78);
+          for(let r2=0;r2<rows;r2++){
+            if(rnd()>.34)continue;
+            const wy=horizon-bh+r2*H*.028+H*R(0,.008);
+            const wc=pick(winCols);
+            ctx.fillStyle=kA(wc,R(.3,.7));
+            ctx.fillRect(wx,wy,R(2.6,4.4)*u,R(2.2,3.6)*u);
+          }
+        }
+      }
+      /* a vertical neon sign, glowing its colour into the night */
+      if(rnd()<signP){
+        const sx=x+bw*R(.15,.8),sw=R(6,11)*u,sh=H*R(.04,.1);
+        const sy=horizon-bh*R(.35,.85);
+        const sc=pick(neon);
+        ctx.fillStyle=kA(sc,.55);
+        kPRect(ctx,sx,sy,sw,sh,u*.6);
+        ctx.fillStyle="rgba(8,16,18,.6)";
+        const nch=Math.max(2,Math.round(sh/(sw*1.3)));
+        for(let g2=0;g2<nch;g2++)
+          ctx.fillRect(sx+sw*.22,sy+sh*(g2+.32)/nch,sw*.56,sh*.06);
+        ctx.globalCompositeOperation="lighter";
+        kGlow(ctx,sx+sw/2,sy+sh/2,sw*4.4,sc,.15,sh*.85);
+        ctx.globalCompositeOperation="source-over";
+      }
+      /* a beacon blinks at the top of the tallest */
+      if(bh>maxH*.75&&rnd()<.5){
+        ctx.fillStyle="rgba(214,92,84,.8)";
+        ctx.beginPath();ctx.arc(x+bw*R(.3,.7),horizon-bh-H*.004,1.8*u,0,7);ctx.fill();
+      }
+      x+=bw+W*R(0,.025);
+    }
+  };
+  /* far plane first, hazed; then the nearer, darker one */
+  layer(KP.cityFar,1,.5,[KP.win,"#c8d4dc"],.1,u*1.1);
+  const hz=ctx.createLinearGradient(0,horizon-maxH,0,horizon);
+  hz.addColorStop(0,kA(skyHz,0));hz.addColorStop(1,kA(skyHz,.4));
+  ctx.fillStyle=hz;ctx.fillRect(0,horizon-maxH,W,maxH);
+  layer(KP.cityMid,.62,.65,[KP.win,"#d6dee2"],.16,u*1.3);
+  /* the city stands on its own dark edge */
+  ctx.fillStyle="#0e0d10";
+  ctx.fillRect(0,horizon-H*.01,W,H*.013);
+}
+
 function kRR(ctx,x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);
@@ -4398,6 +4571,20 @@ function* keitaFinish(C,statusCb,prog){
     hctx.globalCompositeOperation="source-over";
   }
   statusCb(0,0,{keita:"letting the night settle"});
+  /* the facet pass: broad overlay patches modulate the tone the way a
+     loaded brush blocks in a night — nothing stays machine-smooth */
+  hctx.globalCompositeOperation="overlay";
+  for(let i=0;i<240;i++){
+    const px=rnd()*W,py=rnd()*H;
+    const pw=W*R(.03,.12),ph=pw*R(.2,.5);
+    hctx.save();
+    hctx.translate(px,py);hctx.rotate(R(-.25,.25));
+    hctx.fillStyle=kA(pick(["#1e2a38","#3a3226","#243640","#2e2620","#1c2430"]),R(.05,.12));
+    hctx.fillRect(-pw/2,-ph/2,pw,ph);
+    hctx.restore();
+    if(i%80===79)yield;
+  }
+  hctx.globalCompositeOperation="source-over";
   /* vignette */
   const v=hctx.createRadialGradient(W/2,H*.46,Math.min(W,H)*.42,W/2,H*.5,Math.max(W,H)*.74);
   v.addColorStop(0,"rgba(4,10,18,0)");
@@ -4431,18 +4618,15 @@ function* keitaFinish(C,statusCb,prog){
    ========================================================= */
 function kJihanki(C,statusCb,steps){
   const {W,H}=C;const u=(W+H)/2000;
-  /* this night's temperature: cool blue or teal-green */
-  const hour=rnd()<.22?"blue":"green";
-  const openSky=rnd()<.5;                    /* a roofline and sky band */
-  const skyY=openSky?H*R(.2,.32):0;
+  /* one muted dusk; the seed only tilts it a little warmer or cooler */
+  const hour="dusk";
+  const openSky=rnd()<.85;                   /* the city behind the lane */
+  const skyY=openSky?H*R(.32,.44):0;
   const groundY=H*R(.66,.74);
-  const wallA=hour==="blue"?"#0a141f":"#0b211e";
-  const wallB=hour==="blue"?"#17283c":"#1a4038";
-  const groundA=hour==="blue"?"#091018":"#0a1d18";
-  const groundB=hour==="blue"?"#172739":"#1c4138";
-  const glowH=hour==="blue"?"#cfe7ff":"#d6f5e8";
-  const skyA=hour==="blue"?"#070d1f":"#071a1e";
-  const skyB=hour==="blue"?"#11334e":"#125450";
+  const wallA=KP.wall[0],wallB=KP.wall[1];
+  const groundA=KP.ground[0],groundB=KP.ground[1];
+  const glowH=KP.machine;
+  const skyA=KP.skyTop,skyB=KP.skyHz;
 
   /* layout of the machines, needed by several passes */
   const mh=H*R(.48,.58);
@@ -4454,10 +4638,8 @@ function kJihanki(C,statusCb,steps){
   const m2w=mw*R(.84,.96), m2x=mx+mw+u*R(4,12);
   const m2y=my+mh*.04, m2h=mh*.96;
   const warm2=rnd()<.6;                       /* the neighbour glows amber */
-  const glow2=warm2?"#ffd9a0":glowH;
-  const bodyHues=hour==="blue"
-    ?["#173656","#581e28","#aab6b6","#1e4150"]
-    :["#194540","#581e28","#aeb9ae","#22424e"];
+  const glow2=warm2?KP.sodium:glowH;
+  const bodyHues=["#2e4252","#5c2a28","#8e948e","#3a4440","#6e3624"];
   const bodyH=pick(bodyHues),body2=pick(bodyHues);
   const cgx=second?(mx+ (mw+m2w+u*8)/2):(mx+mw/2);
 
@@ -4472,32 +4654,11 @@ function kJihanki(C,statusCb,steps){
     g.addColorStop(0,wallA);g.addColorStop(1,wallB);
     hctx.fillStyle=g;hctx.fillRect(0,skyY,W,groundY-skyY+2);
     kMottle(hctx,0,skyY,W,groundY-skyY,[wallA,wallB,"#060d14"],110,W*.04,W*.15,.12);
+    kBrush(hctx,0,skyY,W,groundY-skyY,[wallA,wallB,"#2e2418","#120e08"],150,.03,.08,0);
     if(openSky){
-      /* the roofline: dark parapet, a tank, an antenna */
-      hctx.fillStyle="#050b12";
-      hctx.fillRect(0,skyY-2,W,H*.012);
-      const boxes=[];
-      const rn=RI(2,4);
-      for(let i=0;i<rn;i++){
-        const bx=W*rnd(),bw=W*R(.05,.18),bh=H*R(.02,.07);
-        hctx.fillRect(bx,skyY-bh,bw,bh+H*.02);
-        boxes.push([bx,bw,bh]);
-      }
-      if(rnd()<.6){const ax=W*R(.1,.9);
-        hctx.strokeStyle="#050b12";hctx.lineWidth=2.4*u;
-        hctx.beginPath();hctx.moveTo(ax,skyY);hctx.lineTo(ax,skyY-H*R(.05,.1));hctx.stroke();
-        hctx.beginPath();hctx.moveTo(ax-18*u,skyY-H*.04);hctx.lineTo(ax+18*u,skyY-H*.04);hctx.stroke();}
-      /* one or two far windows still awake, in the parapet blocks */
-      for(let i=0;i<RI(1,3)&&boxes.length;i++){
-        const bb=pick(boxes);
-        const ws=R(5,10)*u;
-        const wx2=bb[0]+bb[1]*R(.15,.7),wy2=skyY-bb[2]*R(.3,.75);
-        hctx.fillStyle=kA("#ffd9a0",.8);
-        hctx.fillRect(wx2,wy2,ws,ws*.8);
-        hctx.globalCompositeOperation="lighter";
-        kGlow(hctx,wx2+ws/2,wy2+ws*.4,ws*3,"#ffd9a0",.18);
-        hctx.globalCompositeOperation="source-over";
-      }
+      /* the city carries on behind the lane */
+      kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#22304a"],50,.02,.05,0);
+      kCity(hctx,W,H,skyY,u,hour,H*R(.16,.24));
     }
   }});
   steps.push({label:"the lane's old wall",fn:()=>{
@@ -4508,11 +4669,28 @@ function kJihanki(C,statusCb,steps){
       hctx.lineWidth=R(1,2.4)*u;
       hctx.beginPath();hctx.moveTo(x,skyY+R(0,40)*u);hctx.lineTo(x+R(-10,10)*u,groundY);hctx.stroke();
     }
-    /* a horizontal seam or two */
-    hctx.lineWidth=1.6*u;
-    for(let i=0;i<RI(1,2);i++){
-      const y=skyY+(groundY-skyY)*R(.3,.8);
-      hctx.beginPath();hctx.moveTo(0,y);hctx.lineTo(W,y+R(-8,8)*u);hctx.stroke();
+    /* the boards of an old wooden front run the lane */
+    hctx.lineWidth=1.4*u;
+    hctx.strokeStyle="rgba(8,6,4,.28)";
+    for(let y=skyY+R(10,26)*u;y<groundY;y+=R(16,26)*u){
+      hctx.beginPath();hctx.moveTo(0,y);hctx.lineTo(W,y+R(-5,5)*u);hctx.stroke();
+    }
+    /* a shuttered window above the machines, asleep */
+    if(rnd()<.7){
+      const sx2=W*R(.55,.78),sw2=W*R(.07,.1),sy2=skyY+(groundY-skyY)*R(.12,.3);
+      hctx.fillStyle="#171310";
+      kPRect(hctx,sx2,sy2,sw2,sw2*.78,.8,3*u);
+      hctx.strokeStyle="rgba(120,100,80,.16)";hctx.lineWidth=1.4*u;
+      for(let i=1;i<5;i++){
+        hctx.beginPath();hctx.moveTo(sx2,sy2+sw2*.78*i/5);
+        hctx.lineTo(sx2+sw2,sy2+sw2*.78*i/5);hctx.stroke();
+      }
+    }
+    /* a small sleeping sign board */
+    if(rnd()<.6){
+      const gx2=W*R(.05,.2),gw2=W*R(.05,.08);
+      hctx.fillStyle=kA(pick(KP.neon),.3);
+      kPRect(hctx,gx2,skyY+(groundY-skyY)*R(.15,.35),gw2,gw2*.4,.8,2.5*u);
     }
     /* grime gathers at the wall's foot */
     const gr=hctx.createLinearGradient(0,groundY-H*.08,0,groundY);
@@ -4551,7 +4729,9 @@ function kJihanki(C,statusCb,steps){
     hctx.fillStyle=g;hctx.fillRect(0,groundY,W,H-groundY);
     hctx.fillStyle="rgba(2,8,12,.6)";
     hctx.fillRect(0,groundY-2.5*u,W,5*u);
-    kMottle(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#060b0e"],90,W*.03,W*.13,.14);
+    kMottle(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#100c08"],90,W*.03,W*.13,.14);
+    kBrush(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#33281c"],130,.03,.08,0);
+    kPavers(hctx,0,groundY+H*.02,W,H-groundY,u);
     /* a kerb edge or drain cover, barely told */
     if(rnd()<.5){
       const ky=H*R(.86,.94);
@@ -4570,7 +4750,7 @@ function kJihanki(C,statusCb,steps){
     g.addColorStop(.55,kMix(body,"#03070c",dim?.7:.34));
     g.addColorStop(1,kMix(body,"#03070c",dim?.82:.58));
     hctx.fillStyle=g;
-    kRR(hctx,x,y,w,h,w*.025);hctx.fill();
+    kPRect(hctx,x,y,w,h,1.7*u);
     /* side faces catch the neighbour's light */
     const sg=hctx.createLinearGradient(x,0,x+w*.18,0);
     sg.addColorStop(0,kA(gl,dim?.05:.12));sg.addColorStop(1,kA(gl,0));
@@ -4598,7 +4778,7 @@ function kJihanki(C,statusCb,steps){
     wg.addColorStop(.85,dim?kMix(gl,"#1a232c",.55):kMix(gl,"#c8d4da",.35));
     wg.addColorStop(1,dim?"#101820":kMix(gl,"#5a7080",.5));
     hctx.fillStyle=wg;
-    kRR(hctx,wx,wy,ww,wh,w*.016);hctx.fill();
+    kPRect(hctx,wx,wy,ww,wh,1.3*u);
     /* three rows of cans */
     const prodCols=["#b8252c","#d8741c","#1a8a5e","#1f6cc0","#d8b22c","#a8325e","#1f9eb0","#d9d6cc","#3a3f8a"];
     const rows=3;
@@ -4657,7 +4837,7 @@ function kJihanki(C,statusCb,steps){
     /* the window's thin chrome frame */
     hctx.strokeStyle=dim?"rgba(160,180,195,.18)":"rgba(220,235,245,.4)";
     hctx.lineWidth=1.8*u;
-    kRR(hctx,wx,wy,ww,wh,w*.016);hctx.stroke();
+    kPoly(hctx,kJit(wx,wy,ww,wh,1.1*u));hctx.stroke();
   };
   const drawLower=(x,y,w,h,dim,gl)=>{
     const py=y+h*.575;
@@ -4754,7 +4934,7 @@ function kJihanki(C,statusCb,steps){
       hctx.fillRect(dx,dy,R(6,22)*u*persp,R(1.6,4.5)*u*persp);
     }
   }});
-  if(rnd()<.78)steps.push({label:"posting the lone figure",fn:()=>{
+  if(rnd()<.55)steps.push({label:"posting the lone figure",fn:()=>{
     const dir=rnd()<.65?-1:1;                /* which side the light is */
     const fh=mh*R(.8,.9);
     const fx=dir<0
@@ -4778,10 +4958,10 @@ function kDenwa(C,statusCb,steps){
   const {W,H}=C;const u=(W+H)/2000;
   const horizon=H*R(.42,.5);
   const walkY=H*R(.8,.86);              /* the sidewalk's near edge */
-  const skyA="#06161c",skyB="#11514e";
-  const roadA="#0b1e1c",roadB="#173c36";
-  const walkA="#12302b",walkB="#1c453c";
-  const warm="#ffc878",warmDeep="#ff9a3c";
+  const skyA=KP.skyTop,skyB=KP.skyHz;
+  const roadA=KP.road[0],roadB=KP.road[1];
+  const walkA=KP.ground[0],walkB=KP.ground[1];
+  const warm=KP.booth,warmDeep="#d98a3a";
   const bw=H*R(.21,.24),bh=bw*R(2.1,2.3);
   const bx=W*R(.56,.7)-bw/2,bby=walkY+H*R(.02,.05),by=bby-bh;
 
@@ -4790,30 +4970,16 @@ function kDenwa(C,statusCb,steps){
     sg.addColorStop(0,skyA);sg.addColorStop(.7,kMix(skyA,skyB,.55));sg.addColorStop(1,skyB);
     hctx.fillStyle=sg;hctx.fillRect(0,0,W,horizon+2);
     kMottle(hctx,0,0,W,horizon,[skyA,skyB,"#0a2a30"],70,W*.05,W*.2,.1);
-    /* the city far off: silhouettes of every height, with gaps where
-       the sky still reaches the road */
-    let x=-W*.02;
-    while(x<W){
-      if(rnd()<.2){x+=W*R(.04,.1);continue;}   /* a gap */
-      const bw2=W*R(.04,.16),bh2=H*Math.pow(rnd(),1.6)*.22+H*.015;
-      hctx.fillStyle=kMix("#08191c","#0d2a2c",rnd()*.5);
-      hctx.fillRect(x,horizon-bh2,bw2+2,bh2+2);
-      if(rnd()<.3)hctx.fillRect(x+bw2*R(.1,.6),horizon-bh2-H*R(.008,.02),bw2*R(.15,.3),H*.025);
-      if(rnd()<.4){
-        hctx.fillStyle=kA(rnd()<.5?"#ffd9a0":"#cfe8e2",R(.25,.6));
-        hctx.fillRect(x+bw2*R(.2,.7),horizon-bh2*R(.4,.85),4*u,3.4*u);
-      }
-      x+=bw2+W*R(0,.03);
-    }
-    /* the city stands on a dark far edge — without it the blocks float */
-    hctx.fillStyle="#07171a";
-    hctx.fillRect(0,horizon-H*.012,W,H*.016);
+    kBrush(hctx,0,0,W,horizon,[skyA,skyB,"#22304a"],70,.02,.05,0);
+    /* Tokyo across the road: towers, windows, neon */
+    kCity(hctx,W,H,horizon,u,"green",H*R(.22,.3));
   }});
   steps.push({label:"laying the road",fn:()=>{
     const g=hctx.createLinearGradient(0,horizon,0,walkY);
     g.addColorStop(0,kMix(roadB,skyB,.18));g.addColorStop(1,roadA);
     hctx.fillStyle=g;hctx.fillRect(0,horizon,W,walkY-horizon+2);
     kMottle(hctx,0,horizon,W,walkY-horizon,[roadA,roadB],70,W*.04,W*.14,.12);
+    kBrush(hctx,0,horizon,W,walkY-horizon,[roadA,roadB,"#222c3a"],110,.03,.07,0);
     /* the centre line, broken, hurrying away */
     hctx.fillStyle="rgba(190,210,200,.16)";
     let t=0;
@@ -4831,13 +4997,13 @@ function kDenwa(C,statusCb,steps){
     hctx.fillRect(0,walkY,W,2.6*u);
     hctx.fillStyle="rgba(3,10,9,.5)";
     hctx.fillRect(0,walkY+2.6*u,W,3*u);
-    kMottle(hctx,0,walkY,W,H-walkY,[walkA,walkB,"#0c211c"],60,W*.03,W*.12,.13);
-    /* pavement joints */
-    hctx.strokeStyle="rgba(4,12,10,.4)";hctx.lineWidth=1.8*u;
-    for(let i=1;i<7;i++){
-      const jx=W*i/7+R(-20,20)*u;
-      hctx.beginPath();hctx.moveTo(jx,walkY);hctx.lineTo(jx+R(-30,30)*u,H);hctx.stroke();
-    }
+    kMottle(hctx,0,walkY,W,H-walkY,[walkA,walkB,"#241a10"],60,W*.03,W*.12,.13);
+    kBrush(hctx,0,walkY,W,H-walkY,[walkA,walkB,"#33281c","#181208"],90,.03,.08,0);
+    /* the warm paver work his sidewalks stand on */
+    kPavers(hctx,0,walkY+H*.01,W,H-walkY,u);
+    /* the tactile strip runs the kerb, its yellow long since muted */
+    hctx.fillStyle="rgba(150,128,58,.22)";
+    hctx.fillRect(0,walkY+H*.012,W,H*.016);
   }});
   steps.push({label:"raising the poles",fn:()=>{
     /* a guardrail along the kerb, catching a little sky */
@@ -4863,23 +5029,33 @@ function kDenwa(C,statusCb,steps){
     drawPole(W*R(.12,.2),1);
     drawPole(W*R(.42,.5),.55);
     if(rnd()<.6)drawPole(W*R(.78,.95),.4);
-    kWires(hctx,W,H*R(.04,.12),RI(3,5),"rgba(3,10,10,.55)",u*3);
+    kWires(hctx,W,H*R(.04,.12),RI(4,7),"rgba(6,6,8,.5)",u*3);
+    /* the lamplighter's work: one or two warm lanterns down the walk */
+    kLamp(hctx,W*R(.06,.16),walkY+H*R(.04,.1),H*R(.3,.4),u);
+    if(rnd()<.5)kLamp(hctx,W*R(.86,.96),walkY+H*R(.02,.06),H*R(.24,.32),u);
   }});
   steps.push({label:"building the booth",fn:()=>{
+    /* the booth's host: a dark building edge behind it, just entering */
+    if(rnd()<.6){
+      hctx.fillStyle="#191510";
+      kPRect(hctx,W*R(.88,.94),horizon-H*R(.2,.32),W*.2,H*.8,1,6*u);
+      hctx.fillStyle=kA(KP.win,.4);
+      hctx.fillRect(W*R(.93,.97),horizon-H*R(.1,.22),5*u,4*u);
+    }
     /* its shadow first — tight under the frame, never a dark ring */
     hctx.fillStyle="rgba(2,8,8,.45)";
     hctx.beginPath();hctx.ellipse(bx+bw/2,bby+1.4*u,bw*.56,H*.008,0,0,7);hctx.fill();
     /* the frame */
     const fg=hctx.createLinearGradient(0,by,0,bby);
-    fg.addColorStop(0,"#13302c");fg.addColorStop(1,"#0a1d1a");
+    fg.addColorStop(0,"#2c261d");fg.addColorStop(1,"#16110b");
     hctx.fillStyle=fg;
-    kRR(hctx,bx,by,bw,bh,bw*.02);hctx.fill();
+    kPRect(hctx,bx,by,bw,bh,1.7*u);
     /* roof slab + lit crown sign */
-    hctx.fillStyle="#0c2421";
+    hctx.fillStyle="#1c170f";
     hctx.fillRect(bx-bw*.06,by-bh*.012,bw*1.12,bh*.03);
-    hctx.fillStyle=kMix("#d6f5e8","#ffffff",.2);
+    hctx.fillStyle=kMix("#f2ecd8","#ffffff",.25);
     hctx.fillRect(bx+bw*.1,by+bh*.018,bw*.8,bh*.042);
-    hctx.fillStyle="rgba(20,80,70,.8)";
+    hctx.fillStyle="rgba(80,72,52,.7)";
     hctx.fillRect(bx+bw*.2,by+bh*.03,bw*.6,bh*.018);
     /* the warm glass: three vertical panels each side of a mullion */
     const gx=bx+bw*.08,gy=by+bh*.08,gw=bw*.84,gh=bh*.84;
@@ -4888,11 +5064,11 @@ function kDenwa(C,statusCb,steps){
     gg.addColorStop(.45,warm);
     gg.addColorStop(1,kMix(warmDeep,"#5a3417",.4));
     hctx.fillStyle=gg;
-    hctx.fillRect(gx,gy,gw,gh);
+    kPRect(hctx,gx,gy,gw,gh,1.3*u);
     /* the telephone on its shelf, half lost in the warmth */
-    hctx.fillStyle="rgba(20,70,60,.85)";
+    hctx.fillStyle="rgba(58,52,40,.85)";
     kRR(hctx,gx+gw*.18,gy+gh*.4,gw*.36,gh*.16,gw*.04);hctx.fill();
-    hctx.fillStyle="rgba(8,30,26,.9)";
+    hctx.fillStyle="rgba(24,20,14,.9)";
     hctx.fillRect(gx+gw*.22,gy+gh*.43,gw*.12,gh*.1);
     hctx.fillStyle="rgba(2,10,9,.55)";
     hctx.fillRect(gx+gw*.18,gy+gh*.56,gw*.36,gh*.014);
@@ -4901,7 +5077,7 @@ function kDenwa(C,statusCb,steps){
     shg.addColorStop(0,"rgba(90,40,10,.32)");shg.addColorStop(1,"rgba(90,40,10,0)");
     hctx.fillStyle=shg;hctx.fillRect(gx,gy+gh*.56,gw,gh*.34);
     /* mullions: the frame's dark bones over the glass */
-    hctx.fillStyle="#0b1f1c";
+    hctx.fillStyle="#1a150e";
     hctx.fillRect(gx+gw*.485,gy,gw*.03,gh);
     for(let i=1;i<4;i++)hctx.fillRect(gx,gy+gh*i/4-bh*.006,gw,bh*.012);
     hctx.fillStyle="rgba(255,235,200,.25)";
@@ -4949,7 +5125,7 @@ function kDenwa(C,statusCb,steps){
     }
     hctx.globalCompositeOperation="source-over";
   }});
-  if(rnd()<.45)steps.push({label:"posting the passer-by",fn:()=>{
+  if(rnd()<.35)steps.push({label:"posting the passer-by",fn:()=>{
     const dir=bx>W*.5?1:-1;
     const fx=bx+bw/2-dir*bw*R(1.2,2.2);
     kFigure(hctx,fx,walkY+H*R(.04,.08),bh*R(.52,.6),dir,warm,
@@ -4962,14 +5138,16 @@ function kDenwa(C,statusCb,steps){
    ========================================================= */
 function kKonbini(C,statusCb,steps){
   const {W,H}=C;const u=(W+H)/2000;
-  const skyY=H*R(.2,.27);
+  const skyY=H*R(.12,.18);
   const groundY=H*R(.68,.74);
-  const skyA="#061520",skyB="#0f4444";
-  const groundA="#0a1d18",groundB="#1d473c";
-  const glowH="#e7fbe9";
+  const skyA=KP.skyTop,skyB=KP.skyHz;
+  const groundA=KP.ground[0],groundB=KP.ground[1];
+  const glowH=KP.store;
+  /* the store lives on the ground floor of its building */
+  const hostY=skyY+H*R(.01,.03);
   /* the brand's stripes — never quite anyone's trademark */
   const stripes=pick([["#d8741c","#1a8a5e","#b8252c"],["#1f6cc0","#d8b22c"],["#b8252c","#1f9eb0"],["#1a8a5e","#d8741c"]]);
-  const fasY=skyY+H*R(.015,.04),fasH=H*R(.085,.105);
+  const fasY=skyY+H*R(.13,.19),fasH=H*R(.085,.105);
   const glY=fasY+fasH,glH=groundY-glY;
   const doorX=W*R(.42,.6),doorW=W*R(.085,.105);
   const brickX=rnd()<.5?W*R(.06,.12):-1;     /* a brick pier at the left */
@@ -4980,44 +5158,69 @@ function kKonbini(C,statusCb,steps){
     sg.addColorStop(0,skyA);sg.addColorStop(1,skyB);
     hctx.fillStyle=sg;hctx.fillRect(0,0,W,skyY+2);
     kMottle(hctx,0,0,W,skyY,[skyA,skyB],40,W*.06,W*.2,.1);
-    /* the block behind: towers of every height, gaps of clean sky */
-    let x=-W*.02;
-    while(x<W){
-      if(rnd()<.18){x+=W*R(.03,.09);continue;}
-      const bw2=W*R(.05,.18),bh2=H*Math.pow(rnd(),1.5)*.2+H*.02;
-      hctx.fillStyle=kMix("#071a20","#0c2c30",rnd()*.5);
-      hctx.fillRect(x,skyY-bh2,bw2+2,bh2+2);
-      if(rnd()<.3)hctx.fillRect(x+bw2*R(.1,.6),skyY-bh2-H*R(.008,.022),bw2*R(.12,.3),H*.03);
-      if(rnd()<.45){
-        hctx.fillStyle=kA(rnd()<.6?"#ffd9a0":"#bfe8df",R(.3,.6));
-        for(let wn=0;wn<RI(1,3);wn++)
-          hctx.fillRect(x+bw2*R(.15,.75),skyY-bh2*R(.3,.85),4*u,3.4*u);
-      }
-      x+=bw2+W*R(0,.04);
-    }
-    if(rnd()<.55){ /* the pachinko glow behind the roofline */
-      hctx.globalCompositeOperation="lighter";
-      kGlow(hctx,W*R(.6,.9),skyY-H*.05,W*.12,pick(["#7fe8c8","#ff9a6a"]),.16);
-      hctx.globalCompositeOperation="source-over";
-    }
+    kBrush(hctx,0,0,W,skyY,[skyA,skyB,"#22304a"],50,.02,.05,0);
+    /* the city stacks up behind the store */
+    kCity(hctx,W,H,skyY,u,"green",H*R(.14,.2));
   }});
   steps.push({label:"raising the shopfront",fn:()=>{
     /* the building band behind the glass */
-    hctx.fillStyle="#0b201f";
+    hctx.fillStyle="#16120d";
     hctx.fillRect(0,skyY,W,groundY-skyY+2);
+    /* the host building: a dark muted facade above the fascia, with a
+       window row, AC boxes, a balcony rail — the store sits IN a city */
+    const fgd=hctx.createLinearGradient(0,hostY,0,fasY);
+    fgd.addColorStop(0,"#221d18");fgd.addColorStop(1,"#322a20");
+    hctx.fillStyle=fgd;
+    kPRect(hctx,-u*4,hostY,W+u*8,fasY-hostY+u*2,1,5*u);
+    kBrush(hctx,0,hostY,W,fasY-hostY,["#241e16","#352c20","#1c1812"],70,.04,.09,0);
+    /* the window row — most asleep, one or two awake */
+    const nwin=RI(5,8),wh2=(fasY-hostY)*R(.34,.44);
+    for(let i=0;i<nwin;i++){
+      const wx2=W*(i+.5)/nwin+R(-12,12)*u,ww2=W*R(.035,.05);
+      const lit=rnd()<.22;
+      hctx.fillStyle=lit?kA(KP.win,R(.5,.75)):"rgba(10,12,18,.8)";
+      kPRect(hctx,wx2-ww2/2,hostY+(fasY-hostY)*R(.22,.32),ww2,wh2,.7,2.5*u);
+      if(lit){
+        hctx.globalCompositeOperation="lighter";
+        kGlow(hctx,wx2,hostY+(fasY-hostY)*.45,ww2*1.6,KP.win,.16);
+        hctx.globalCompositeOperation="source-over";
+      }
+      if(rnd()<.3){ /* an AC box hangs below */
+        hctx.fillStyle="#15110d";
+        kPRect(hctx,wx2-ww2*.3,fasY-(fasY-hostY)*.16,ww2*.6,(fasY-hostY)*.13,.6,2*u);
+      }
+    }
+    /* the balcony rail's thin line */
+    hctx.strokeStyle="rgba(120,104,84,.2)";hctx.lineWidth=1.6*u;
+    hctx.beginPath();hctx.moveTo(0,hostY+(fasY-hostY)*.68);
+    hctx.lineTo(W,hostY+(fasY-hostY)*.68+R(-3,3)*u);hctx.stroke();
+    /* the corner carries its vertical sign */
+    if(rnd()<.7){
+      const sx2=W*pick([R(.02,.05),R(.93,.96)]),sw2=W*.022;
+      const sc2=pick(KP.neon);
+      hctx.fillStyle=kA(sc2,.6);
+      kPRect(hctx,sx2,hostY+(fasY-hostY)*.1,sw2,(fasY-hostY)*.86,.7,3*u);
+      hctx.fillStyle="rgba(12,12,14,.6)";
+      for(let g2=0;g2<4;g2++)
+        hctx.fillRect(sx2+sw2*.25,hostY+(fasY-hostY)*(.2+g2*.17),sw2*.5,(fasY-hostY)*.05);
+      hctx.globalCompositeOperation="lighter";
+      kGlow(hctx,sx2+sw2/2,hostY+(fasY-hostY)*.5,sw2*4,sc2,.18,(fasY-hostY)*.5);
+      hctx.globalCompositeOperation="source-over";
+    }
     /* fascia: the lit white band with its stripes */
     const fg=hctx.createLinearGradient(0,fasY,0,fasY+fasH);
     fg.addColorStop(0,"#f4f6e8");
     fg.addColorStop(.8,kMix(glowH,"#d8e4d2",.4));
     fg.addColorStop(1,kMix(glowH,"#90a896",.45));
-    hctx.fillStyle=fg;hctx.fillRect(0,fasY,W,fasH);
+    hctx.fillStyle=fg;
+    kPRect(hctx,-u*4,fasY,W+u*8,fasH,1.8*u);
     const sh2=fasH*.2;
     stripes.forEach((sc,i)=>{
       hctx.fillStyle=sc;
-      hctx.fillRect(0,fasY+fasH*(.16+i*.26),W,sh2);
+      kPRect(hctx,-u*4,fasY+fasH*(.16+i*.26),W+u*8,sh2,1.2*u);
     });
     hctx.globalCompositeOperation="lighter";
-    kGlow(hctx,W*.5,fasY+fasH*.4,W*.5,"#ffffff",.1,fasH*1.6);
+    kGlow(hctx,W*.5,fasY+fasH*.4,W*.5,"#ffffff",.06,fasH*1.4);
     hctx.globalCompositeOperation="source-over";
     /* the fascia's soft drop shadow onto the glass below */
     const fsh=hctx.createLinearGradient(0,glY,0,glY+glH*.18);
@@ -5029,11 +5232,11 @@ function kKonbini(C,statusCb,steps){
     /* the glass band: a green-white interior with shelf memories */
     const inset=W*.012;
     const gg=hctx.createLinearGradient(0,glY,0,groundY);
-    gg.addColorStop(0,kMix(glowH,"#dff2df",.5));
-    gg.addColorStop(.6,kMix(glowH,"#b8d8c2",.45));
-    gg.addColorStop(1,kMix(glowH,"#6d8a7a",.45));
+    gg.addColorStop(0,"#cfe2c8");
+    gg.addColorStop(.6,"#b2cdb4");
+    gg.addColorStop(1,"#7e9a88");
     hctx.fillStyle=gg;
-    hctx.fillRect(inset,glY+glH*.06,W-inset*2,glH*.94);
+    kPRect(hctx,inset,glY+glH*.06,W-inset*2,glH*.94,1.5*u);
     /* the ceiling's lamp strips, seen through the glass */
     hctx.fillStyle="rgba(255,255,250,.5)";
     for(let i=0;i<RI(3,5);i++)
@@ -5072,8 +5275,8 @@ function kKonbini(C,statusCb,steps){
     }
     /* the doorway: brightest of all, its floor seen through */
     const dg=hctx.createLinearGradient(0,glY,0,groundY);
-    dg.addColorStop(0,kMix(glowH,"#ffffff",.5));
-    dg.addColorStop(1,kMix(glowH,"#ffffff",.1));
+    dg.addColorStop(0,kMix(glowH,"#eef6e4",.7));
+    dg.addColorStop(1,kMix(glowH,"#cfe2c8",.6));
     hctx.fillStyle=dg;
     hctx.fillRect(doorX,glY+glH*.04,doorW,glH*.96);
     hctx.fillStyle="rgba(120,150,135,.4)";
@@ -5126,7 +5329,9 @@ function kKonbini(C,statusCb,steps){
     const g=hctx.createLinearGradient(0,groundY,0,H);
     g.addColorStop(0,groundB);g.addColorStop(1,groundA);
     hctx.fillStyle=g;hctx.fillRect(0,groundY,W,H-groundY);
-    kMottle(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#0a1a14"],90,W*.03,W*.12,.13);
+    kMottle(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#241a10"],90,W*.03,W*.12,.13);
+    kBrush(hctx,0,groundY,W,H-groundY,[groundA,groundB,"#33281c","#181208"],130,.03,.08,0);
+    kPavers(hctx,0,groundY+H*.015,W,H-groundY,u);
     /* a parking line or two, almost worn away */
     hctx.strokeStyle="rgba(210,225,210,.1)";
     hctx.lineWidth=4*u;
@@ -5137,9 +5342,9 @@ function kKonbini(C,statusCb,steps){
   }});
   steps.push({label:"switching the night shift on",fn:()=>{
     hctx.globalCompositeOperation="lighter";
-    kGlow(hctx,W*.5,fasY+fasH*.5,W*.55,glowH,.16,fasH*2.6);
-    kGlow(hctx,W*.5,glY+glH*.5,W*.6,glowH,.12,glH*1.4);
-    kGlow(hctx,doorX+doorW/2,glY+glH*.5,doorW*3,glowH,.2,glH*1.1);
+    kGlow(hctx,W*.5,fasY+fasH*.5,W*.55,glowH,.1,fasH*2.2);
+    kGlow(hctx,W*.5,glY+glH*.5,W*.6,glowH,.06,glH*1.3);
+    kGlow(hctx,doorX+doorW/2,glY+glH*.5,doorW*3,glowH,.1,glH*1.0);
     /* the pool runs the whole storefront */
     kGlow(hctx,W*.5,groundY+H*.05,W*.52,glowH,.22,H*.13);
     kGlow(hctx,doorX+doorW/2,groundY+H*.045,doorW*3.4,glowH,.26,H*.1);
@@ -5163,7 +5368,9 @@ function kKonbini(C,statusCb,steps){
     }
   }});
   steps.push({label:"posting the night owls",fn:()=>{
-    const n=rnd()<.7?RI(1,2):0;
+    /* a street lamp keeps one corner */
+    if(rnd()<.65)kLamp(hctx,W*pick([R(.03,.08),R(.92,.97)]),groundY+H*R(.05,.12),H*R(.3,.42),u);
+    const n=rnd()<.5?RI(1,2):0;
     for(let i=0;i<n;i++){
       const dir=rnd()<.5?-1:1;
       const fx=doorX+doorW/2+R(.8,2.6)*doorW*(i?1:-1);
