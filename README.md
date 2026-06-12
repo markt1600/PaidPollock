@@ -1,9 +1,8 @@
 # The Atelier
 
-A generative studio in four wings — Jackson Pollock drip paintings,
-Joan Miró dream paintings, Henri Matisse line drawings, and Keita-ish
-Tokyo nocturnes lit by one glowing machine. Pure static HTML/JS — no
-build step, no dependencies, ready for Vercel.
+A generative studio in three wings — Jackson Pollock drip paintings,
+Joan Miró dream paintings, and Henri Matisse line drawings. Pure static
+HTML/JS — no build step, no dependencies, ready for Vercel.
 
 ## Features
 - **Physically simulated pours** — the engine models the artist's hand moving
@@ -215,7 +214,12 @@ the recipe, so AI-touched sheets rehang pixel-identically with no API
 call, and the curator labels the finished sheet in the voice of a
 curator of modern French drawing.
 
-## The nocturne wing — Keita-ish Tokyo nights
+## A dormant wing — the Keita-ish Tokyo nocturnes (disabled)
+
+The nocturne wing is fully built but currently unlisted. Its engine,
+scene chooser, ledge support and curator voice all remain in the code —
+to rehang it, uncomment the single chip line marked "the nocturne wing
+is dormant" in `buildChips()` in `index.html`.
 
 *Keita-ish* paints the city after the last train: one glowing protagonist
 against a teal-green dark, in the spirit of the contemporary Tokyo
