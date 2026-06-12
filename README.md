@@ -168,19 +168,13 @@ warm wove paper. There is no palette — in its place a **Subject** chooser:
   in a single line, the eyes as short heavy dashes, a small wavy mouth.
   The brush is loaded at the crown and visibly starves on the way
   round.
-- **Figures** — studies in six or eight curves, after the late charcoal
-  nudes: an open loop for the bowed head with nothing inside it, one
-  great line for the back, big rounded masses for the folded legs — no
-  ground line, no hands, no face. The pose rolls seated (knees drawn
-  up, arms folded across them) or reclining.
 - **Flowers** — a vase floating free on the sheet (no table line), a
   few stems fanning into anemones, tulips, daisies and buds, and the
-  signature broad lobed leaf with its midrib (laid as a solid ink mass
-  in the brush drawings).
+  signature broad lobed leaf with its midrib — pure line work, never a
+  filled mass.
 
 Every sheet rolls its **medium** from the seed (faces are always brush
-drawings, as the masks were; figures lean to the crayon of the charcoal
-studies) — pen and Indian ink,
+drawings, as the masks were) — pen and Indian ink,
 brush and Indian ink (heavier swells, a dry tail, solid leaves), or
 crayon (grainy, the paper breathing through, its pressure fading along
 the stroke, the hand lifting to leave small gaps) — and the placard
@@ -199,11 +193,12 @@ Framed drawings sit in a wide bevelled paper mat rather than a linen
 liner.
 
 **The AI draughtsman** — with the AI toggle on, Claude takes the pen
-itself: it composes the drawing as a constrained monochrome stroke
-design (long polylines, arcs, small solid-ink leaves, dots; 12–35
-strokes, economy above all, optional mirror symmetry) and the atelier
-inks whatever it draws with the same pen model in place of the house
-study. The sanitised drawing is recorded in the recipe, so AI-drawn
+itself for the flower studies: it composes the drawing as a constrained
+monochrome stroke design (long polylines, arcs, ink dots — outlines
+only, economy above all) and the atelier inks whatever it draws with
+the same pen model in place of the house study. Faces never leave the
+house: the mask grammar is the signature, so it is always drawn by the
+engine. The sanitised drawing is recorded in the recipe, so AI-drawn
 sheets rehang pixel-identically with no API call, and the curator labels
 the finished sheet in the voice of a curator of modern French drawing.
 

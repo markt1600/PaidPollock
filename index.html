@@ -3524,13 +3524,11 @@ function* scarfGenerate(seed,palKey,motifKey,statusCb,prog={},design){
    ========================================================= */
 const MATISSE_SUBJECTS={
   visage:{name:"Faces",  note:"the late mask drawings"},
-  figure:{name:"Figures",note:"seated & reclining studies"},
   fleurs:{name:"Flowers",note:"vase, fronds & blooms"}
 };
 const MATISSE_DIMS={square:"48 × 48 cm",classic:"56 × 42 cm",pano:"76 × 33 cm",portrait:"42 × 63 cm"};
 const MATISSE_TITLES={
   visage:["Grand visage","Visage","Tête de femme","Masque","Étude de visage"],
-  figure:["Nu allongé","Nu assis","Figure au repos","Étude de nu","Le repos"],
   fleurs:["Fleurs","Bouquet au vase","Anémones","Vase de fleurs","Feuillage"]
 };
 const MATISSE_MEDIA={
@@ -3543,7 +3541,6 @@ const MATISSE_MEDIA={
 function matisseMediumFor(seed,subj){
   if(subj==="visage")return "brush";   /* the masks are brush drawings  */
   const r=mulberry32((seed^0x51ed)>>>0)();
-  if(subj==="figure")return r<.55?"crayon":r<.85?"ink":"brush";
   return r<.6?"ink":r<.84?"brush":"crayon";
 }
 
@@ -3674,33 +3671,6 @@ function mpool(ctx,x,y,r){
   ctx.globalAlpha=ga;
 }
 
-/* a filled ink shape with a living edge — the brush drawings' solid
-   leaves; in pen it falls back to a drawn contour */
-function mfill(ctx,pts){
-  const sm=chaikin(pts.map(p=>p.slice()),3);
-  if(MAT_MED==="crayon"){
-    /* scrubbed mass, the paper breathing through */
-    let cx=0,cy=0;for(const p of sm){cx+=p[0];cy+=p[1];}
-    cx/=sm.length;cy/=sm.length;
-    ctx.fillStyle=MAT_INK;
-    for(let k=5;k>=1;k--){
-      const sc=k/5;
-      crayon(ctx,sm.map(p=>[cx+(p[0]-cx)*sc,cy+(p[1]-cy)*sc]),3.4*MAT_U);
-    }
-    return;
-  }
-  ctx.fillStyle=MAT_INK;
-  const ga=ctx.globalAlpha;ctx.globalAlpha=ga*.97;
-  ctx.beginPath();
-  ctx.moveTo(sm[0][0],sm[0][1]);
-  for(const p of sm)ctx.lineTo(p[0],p[1]);
-  ctx.closePath();ctx.fill();
-  /* the edge is alive: little swells where the brush turned */
-  for(let i=0;i<sm.length;i+=4)
-    if(rnd()<.4)stamp(ctx,sm[i][0],sm[i][1],R(.8,1.8)*MAT_U);
-  ctx.globalAlpha=ga;
-}
-
 /* an elliptical arc as control points (for mline) */
 function mArcPts(cx,cy,rx,ry,a0,a1,rot,n){
   n=n||14;
@@ -3717,8 +3687,8 @@ function mArcPts(cx,cy,rx,ry,a0,a1,rot,n){
    the subject grammars — each returns a PLAN of strokes
    ========================================================= */
 
-/* every plan item: {pts,w,taper,label} | {dot:[x,y,r]} | {fill:pts}
-   | {pool:[x,y,r]} — drawn in order, one prog unit each */
+/* every plan item: {pts,w,taper,label} | {dot:[x,y,r]} — drawn in
+   order, one prog unit each */
 
 /* ---- visage: the late mask face ---- */
 /* One bold closed egg holds the whole head — no hair, no neck, no
@@ -3782,97 +3752,6 @@ function planVisage(W,H){
     w:2.3,taper:"both",label:"the bow of the lips"});
   plan.push({pts:[P(-lw*.6,lY+.1),P(0,lY+.14+R(0,.02)),P(lw*.6,lY+.09)],
     w:2.2,taper:"both",label:"the lower lip"});
-  return plan;
-}
-
-/* ---- figure: studies in six or eight curves ---- */
-/* The economy of the late charcoal nudes: an open loop for the bowed
-   head with nothing inside it, big rounded curves for the masses, no
-   ground line, no hands, no face. */
-function planFigure(W,H){
-  const plan=[];
-  if(rnd()<.5)return planFigureSeated(W,H,plan);
-
-  /* -- reclining: the body floats on the sheet -- */
-  const dir=pick([1,-1]);
-  const L=Math.min(W*.8,H*1.5);
-  const yc=H*R(.56,.64);
-  const x0=W*.5-dir*L*.5;
-  const X=(t,y)=>[x0+dir*L*t,yc+L*y];
-  const j=a=>a+R(-.008,.008);
-  const hr=L*.07;
-  const hc=X(.06,-.16);
-  const PHI=dir>0?Math.PI:0;
-  /* the head: one open loop, nothing inside it */
-  plan.push({pts:mArcPts(hc[0],hc[1],hr,hr*1.1,PHI+.55,PHI+2*Math.PI-.35,0,18),
-    w:1.0,taper:"both",label:"the head"});
-  /* THE line: nape, the long back, the hip's rise, the thigh, the shin
-     out to the pointed foot — all in one breath */
-  plan.push({pts:[
-    [hc[0]+dir*hr*.88,hc[1]-hr*.68],
-    X(j(.13),-.19),X(j(.18),-.175),
-    X(j(.3),-.14),X(j(.38),-.122),
-    X(j(.48),-.16),X(j(.56),-.21),
-    X(j(.64),-.2),X(j(.75),-.14),X(j(.84),-.085),
-    X(j(.93),-.045),X(j(1.02),-.018),X(1.07,-.012)],
-    w:1.2,taper:"end",label:"the sweep of the back"});
-  /* the front: throat, the breast's swell, the belly — one line */
-  plan.push({pts:[
-    [hc[0]-dir*hr*.5,hc[1]+hr*1.02],
-    X(j(.1),-.125),X(.13,-.102),
-    X(j(.17),-.118),X(j(.21),-.112),X(j(.24),-.08),
-    X(j(.31),-.05),X(j(.4),-.04)],
-    w:1.05,taper:"end",label:"the front of the body"});
-  /* the second leg: one quiet echo */
-  plan.push({pts:[X(j(.5),-.11),X(j(.66),-.09),X(j(.8),-.04),X(j(.88),-.012)],
-    w:1.0,taper:"both",label:"the second leg"});
-  /* the arm laid along the body */
-  plan.push({pts:[X(j(.17),-.15),X(j(.27),-.09),X(j(.38),-.062),X(j(.45),-.07)],
-    w:1.0,taper:"end",label:"the resting arm"});
-  return plan;
-}
-
-/* -- seated: knees drawn up, arms folded across them, head bowed -- */
-function planFigureSeated(W,H,plan){
-  const dir=pick([1,-1]);                 /* which way the knees point */
-  const S2=Math.min(W,H)*R(.74,.86);
-  const cx=W*R(.47,.53),cy=H*R(.5,.54);
-  const Q=(x,y)=>[cx-dir*x*S2,cy+y*S2];   /* x grows toward the knees  */
-  const j=a=>a+R(-.012,.012);
-  /* the bowed head: an open loop, the gap toward the chest */
-  const hc=Q(-.12,-.33),hr=S2*.105;
-  const gapA=dir>0?2.45:0.25;             /* lower, on the knee side   */
-  plan.push({pts:mArcPts(hc[0],hc[1],hr,hr*1.04,
-    gapA+.55,gapA+2*Math.PI-.1,0,18),
-    w:1.0,taper:"both",label:"the bowed head"});
-  /* the chest falls from the chin, on down the arm to the knee */
-  plan.push({pts:[[hc[0]+dir*hr*.55,hc[1]+hr*.95],
-    Q(j(.05),-.19),Q(j(.16),-.07),Q(j(.26),.04)],
-    w:1.1,taper:"end",label:"the chest into the arm"});
-  /* the great back: one arc from the nape around to the hip */
-  plan.push({pts:[
-    [hc[0]-dir*hr*.95,hc[1]+hr*.35],
-    Q(j(-.3),-.18),Q(j(-.36),-.02),Q(j(-.35),.16),Q(j(-.27),.3)],
-    w:1.2,taper:"end",label:"the great back"});
-  /* the hip sweeps under, leftward beneath the folded legs */
-  plan.push({pts:[Q(j(-.27),.3),Q(j(-.1),.41),Q(j(.14),.44),Q(j(.3),.4)],
-    w:1.15,taper:"end",label:"the hip beneath"});
-  /* the folded thigh: one big rounded mass */
-  plan.push({pts:[Q(j(.25),.05),Q(j(.38),.1),Q(j(.43),.22),Q(j(.35),.32),Q(j(.22),.34)],
-    w:1.15,taper:"both",label:"the folded knees"});
-  /* the shin tucked beneath it */
-  plan.push({pts:[Q(j(.24),.2),Q(j(.36),.27),Q(j(.34),.37),Q(j(.24),.41)],
-    w:1.0,taper:"both",label:"the shin beneath"});
-  /* the forearm resting across the knees */
-  plan.push({pts:[Q(j(.08),.05),Q(j(.2),.1),Q(j(.28),.17)],
-    w:.95,taper:"end",label:"the forearm across the knees"});
-  /* the foot peeking out: one or two small marks */
-  plan.push({pts:[Q(j(.24),.41),Q(j(.34),.44),Q(.33,.485)],
-    w:.9,taper:"end",label:"the foot"});
-  if(rnd()<.4)plan.push({pts:[Q(.25,.46),Q(j(.31),.485)],w:.75,taper:"end",label:"the foot"});
-  /* a short interior fold, sometimes */
-  if(rnd()<.4)plan.push({pts:[Q(j(-.12),.3),Q(j(.02),.34)],
-    w:.85,taper:"both",label:"the fold of the hip"});
   return plan;
 }
 
@@ -3978,14 +3857,11 @@ function planFleurs(W,H){
     const lx=vx+side*bw*R(1.5,2.1),ly=vTop-domeR*R(-.15,.2);
     const Lr=domeR*R(.34,.46),ang=side*R(.5,1.0)-Math.PI*.5*(side<0?0:0);
     const lp=leafPts(lx,ly,Lr,ang,pick([5,5,7]));
-    if(MAT_MED==="brush"&&rnd()<.6)plan.push({fill:lp,label:"a lobed leaf"});
-    else{
-      plan.push({pts:lp,w:.9,taper:"none",label:"a lobed leaf"});
-      /* the midrib runs the leaf's length */
-      plan.push({pts:[[lx-Math.cos(ang)*Lr*1.0,ly-Math.sin(ang)*Lr*1.0],
-        [lx,ly],[lx+Math.cos(ang)*Lr*.95,ly+Math.sin(ang)*Lr*.95]],
-        w:.7,taper:"end",label:"the leaf's midrib"});
-    }
+    plan.push({pts:lp,w:.9,taper:"none",label:"a lobed leaf"});
+    /* the midrib runs the leaf's length */
+    plan.push({pts:[[lx-Math.cos(ang)*Lr*1.0,ly-Math.sin(ang)*Lr*1.0],
+      [lx,ly],[lx+Math.cos(ang)*Lr*.95,ly+Math.sin(ang)*Lr*.95]],
+      w:.7,taper:"end",label:"the leaf's midrib"});
     /* its stem reaches back to the vase */
     plan.push({pts:[[vx+side*mw*.4,vTop],
       [vx+(lx-vx)*.55,(vTop+ly)/2+R(-6,6)*MAT_U],
@@ -4019,6 +3895,7 @@ function planFromDesign(W,H,design){
         st.a0*Math.PI/180,st.a1*Math.PI/180,(st.rot||0)*Math.PI/180*(mx?-1:1),14),
         w,taper:"both",label:"the draughtsman's line"});
     else if(st.t==="satin"){
+      /* a petal drawn in outline — the wing keeps no solid masses */
       const a=(st.ang||0)*Math.PI/180*(mx?-1:1)+(mx?Math.PI:0);
       const c=M(conv([st.x,st.y])),L2=st.len*RAD,W2=st.wid*RAD;
       const pts=[];
@@ -4027,7 +3904,7 @@ function planFromDesign(W,H,design){
         const ex=Math.cos(t)*L2*.5+L2*.5,ey=Math.sin(t)*W2*.5;
         pts.push([c[0]+ex*Math.cos(a)-ey*Math.sin(a),c[1]+ex*Math.sin(a)+ey*Math.cos(a)]);
       }
-      plan.push({fill:pts,label:"the draughtsman's wash"});
+      plan.push({pts,w:.8,taper:"none",label:"the draughtsman's petal"});
     }else if(st.t==="knot")
       plan.push({dot:[...M(conv([st.x,st.y])),Math.max(2*MAT_U,st.r*RAD)],label:"the draughtsman's point"});
   };
@@ -4076,10 +3953,11 @@ function* matissePhase(seed,fmtKey,subjKey,statusCb,prog,design){
   prog.done=(prog.done||0)+groundUnits;
   yield;
 
-  /* the plan: Claude's drawing if one was commissioned, the house's otherwise */
-  const plan=(design&&design.strokes&&design.strokes.length)
+  /* the plan: Claude's drawing if one was commissioned, the house's
+     otherwise — faces are ALWAYS the house's own mask grammar, so the
+     signature style never drifts */
+  const plan=(design&&design.strokes&&design.strokes.length&&subjKey!=="visage")
     ?planFromDesign(W,H,design)
-    :subjKey==="figure"?planFigure(W,H)
     :subjKey==="fleurs"?planFleurs(W,H)
     :planVisage(W,H);
 
@@ -4106,8 +3984,6 @@ function* matissePhase(seed,fmtKey,subjKey,statusCb,prog,design){
         stamp(hctx,st.dot[0],st.dot[1],st.dot[2]);
         hctx.globalAlpha=1;
       }
-    }else if(st.fill){
-      mfill(hctx,st.fill);
     }else if(st.pts&&st.pts.length>1){
       mline(hctx,st.pts,nib*(st.w||1),{taper:st.taper});
       /* ink gathers at the hardest turns */
@@ -4399,9 +4275,6 @@ function sanitizeDrawing(v){
       strokes.push({t:"arc",c:0,w,x:cl(st.x,-1,1),y:cl(st.y,-1,1),
         rx:cl(st.rx,.01,1),ry:cl(st.ry,.01,1),
         a0:cl(st.a0,-360,360),a1:cl(st.a1,-360,360),rot:cl(st.rot,-360,360)});
-    }else if(st.t==="satin"){
-      strokes.push({t:"satin",c:0,x:cl(st.x,-1,1),y:cl(st.y,-1,1),
-        ang:cl(st.ang,-360,360),len:cl(st.len,.02,.5),wid:cl(st.wid,.01,.3)});
     }else if(st.t==="knot"){
       strokes.push({t:"knot",c:0,x:cl(st.x,-1,1),y:cl(st.y,-1,1),r:cl(st.r,.005,.06)});
     }
@@ -4412,29 +4285,20 @@ function sanitizeDrawing(v){
 }
 
 const DRAUGHTSMAN_THEMES={
-  visage:"a large serene face in the manner of the late mask drawings, 7–12 strokes AT MOST: ONE bold closed egg-shaped contour holds the whole head (NO hair, NO neck, NO shoulders, NO jewellery); inside it only two brows — they MUST differ, and exactly one of them flows on into the nose so the nose is ONE asymmetric line (NEVER two symmetric lines, never a triangle or trapezoid) — the eyes as short heavy HORIZONTAL dashes, and a small wavy mouth; mirror MUST be false",
-  figure:"a figure study in the economy of the late charcoal nudes — seated with knees drawn up and head bowed, or reclining — built from 6–10 big rounded curves ONLY: an open loop for the head with NOTHING inside it (no face, no hair), one great line for the back, simple masses for the folded legs; NO ground line, NO hands or fingers, NO cushion (a tasteful nude, nothing explicit)",
-  fleurs:"a vase of flowers — a few stems fanning into simple open blooms, one broad lobed leaf with a midrib, the vase closed by its own small base curve; NO table line, NO ground line"
+  fleurs:"a vase of flowers — a few stems fanning into simple open blooms, one broad lobed leaf with a midrib, the vase closed by its own small base curve; NO table line, NO ground line, NO solid or filled shapes — outlines only"
 };
 async function askDraughtsman(subjKey){
-  const txt=`You are a master draughtsman in the school of Matisse, composing a LINE DRAWING in pen and Indian ink on a single sheet. Subject: ${DRAUGHTSMAN_THEMES[subjKey]||DRAUGHTSMAN_THEMES.visage}.
-ECONOMY ABOVE ALL: the drawing lives or dies by how few, how long, and how confident its lines are. Build the whole subject from 10–30 strokes (a face needs no more than 18), each line ONE long continuous curve of 8–24 points tracing a graceful arc (the atelier smooths every polyline into a single unbroken stroke). Let one line do two jobs where it can — a brow that becomes the nose, a contour that runs on into the neck. NO hatching, NO shading, NO scribble, NO double-tracing, nothing drawn twice. Every stroke must belong to the one figure — never a scatter of fragments. Leave generous breathing space around the subject.
+  const txt=`You are a master draughtsman in the school of Matisse, composing a LINE DRAWING in pen and Indian ink on a single sheet. Subject: ${DRAUGHTSMAN_THEMES[subjKey]||DRAUGHTSMAN_THEMES.fleurs}.
+ECONOMY ABOVE ALL: the drawing lives or dies by how few, how long, and how confident its lines are. Build the whole subject from 10–28 strokes, each line ONE long continuous curve of 8–24 points tracing a graceful arc (the atelier smooths every polyline into a single unbroken stroke). Let one line do two jobs where it can — a stem that runs on into a leaf's midrib, a contour that closes the vase. NO hatching, NO shading, NO scribble, NO double-tracing, NO filled or solid shapes, nothing drawn twice. Every stroke must belong to the one drawing — never a scatter of fragments. Leave generous breathing space around the subject.
 Reply with ONLY minified JSON, no prose, no fences:
 {"subject":"<=40 chars","mirror":true|false,"strokes":[...]}
-Stroke types (all drawn in the same ink):
+Stroke types (all drawn in the same ink, ALL as open line work — nothing is filled):
 {"t":"line","w":1-3,"pts":[[x,y],...]} — your main tool; w is nib pressure.
 {"t":"arc","w":1-3,"x":..,"y":..,"rx":..,"ry":..,"a0":deg,"a1":deg,"rot":deg} — an elliptical arc.
-{"t":"satin","x":..,"y":..,"ang":deg,"len":..,"wid":..} — a small SOLID ink leaf/petal (use sparingly, len<=0.3).
-{"t":"knot","x":..,"y":..,"r":..} — an ink dot (an iris, a bead, a bud).
+{"t":"knot","x":..,"y":..,"r":..} — a small ink dot (a bloom's centre, a bud).
 Coordinates x,y in [-1,1], centre 0,0, x to the right, y DOWN; keep the drawing within ±0.85. If the subject is left-right symmetric you may set mirror:true and draw only the right half (x>=0) plus the centreline — otherwise mirror:false.`;
   const out=await askClaude([{type:"text",text:txt}],3600);
-  const d=sanitizeDrawing(parseLooseJSON(out));
-  if(d&&d.strokes){
-    /* the wing's own discipline, whatever the reply said */
-    if(subjKey==="visage"){d.mirror=false;d.strokes=d.strokes.slice(0,14);}
-    if(subjKey==="figure"){d.strokes=d.strokes.slice(0,12);}
-  }
-  return d;
+  return sanitizeDrawing(parseLooseJSON(out));
 }
 
 /* the curator writes the wall label for the finished work */
@@ -4694,7 +4558,7 @@ function startGeneration(opts={}){
       /* the drawing wing: with the AI on, Claude takes the pen itself;
          the drawing is recorded for exact replay */
       let design=entry?(entry.design||null):null;
-      if(!entry&&state.ai&&aiAvailable&&!reduce){
+      if(!entry&&state.ai&&aiAvailable&&!reduce&&state.subject!=="visage"){
         statusEl.innerHTML=`<span class="dot"></span>The draughtsman considers the sheet…`;
         setAIThinking(true);
         try{design=await askDraughtsman(state.subject);}
