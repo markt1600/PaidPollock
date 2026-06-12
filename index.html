@@ -298,7 +298,11 @@ canvas#view{display:block;background:#e7e0cd}
 }
 .story::before{content:"— ";color:#9a8f78}
 @media (max-width:880px){
-  body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
+  /* the page is one tall scroll on a phone: the body must be free to
+     grow with its content, or the document's scroll range stops at the
+     viewport's height and the ledge is cut off at the bottom */
+  html,body{height:auto}
+  body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;min-height:100dvh}
   aside{
     flex-direction:column;border-right:none;
     border-bottom:1px solid var(--hairline);
@@ -313,9 +317,10 @@ canvas#view{display:block;background:#e7e0cd}
     min-height:70vh;min-height:72dvh;
     overflow:visible;                      /* grow with the page instead of clipping */
   }
-  .rail{position:static;margin-top:30px}   /* in flow: nothing can hide beneath it */
+  .rail{position:static;margin-top:30px;
+        margin-bottom:max(10px,env(safe-area-inset-bottom))}  /* in flow, never clipped */
   .placard{padding:11px 16px 10px}
-  .rail{justify-content:flex-start;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+  .rail{justify-content:flex-start;padding-bottom:18px}
   .rail button{width:84px}
   .rail img{height:68px}
   .fineprint{margin-top:0}
@@ -3608,72 +3613,137 @@ function mline(ctx,raw,w0,opt){
   }
   const brush=MAT_MED==="brush"&&!opt.forcePen;
   const W0=(brush?w0*2.1:w0)*(opt.press||1);
-  const r=mResample(pts,Math.max(.7*u,W0*.18));
+  const r=mResample(pts,Math.max(.9*u,W0*.3));
   if(!r.total)return;
-  /* a very slight drift of the whole hand, never a wiggle */
-  const ph1=R(0,6.28),ph2=R(0,6.28),amp=brush?.3:.16;
+  const P=r.pts,A=r.along,n=P.length;
+  /* unit normals along the path — the stroke is a continuous RIBBON of
+     ink, never a chain of stamps */
+  const NX=new Array(n),NY=new Array(n);
+  for(let i=0;i<n;i++){
+    const p2=P[Math.min(n-1,i+1)],p1=P[Math.max(0,i-1)];
+    const dx=p2[0]-p1[0],dy=p2[1]-p1[1];
+    const d=Math.hypot(dx,dy)||1;
+    NX[i]=-dy/d;NY[i]=dx/d;
+  }
+  const ph1=R(0,6.28),ph2=R(0,6.28),amp=brush?.17:.11;
   const f1=R(2.2,3.6),f2=R(5,8);
   /* the dip of ink: a loaded start that drains with the physical length
-     of the stroke — long strokes end starved, streaky, broken. The ink
-     master may reload the brush (dip) or hurry its drying (drain). */
+     of the stroke. The ink master may reload the brush (dip) or hurry
+     its drying (drain). */
   const dip=R(1.0,1.3)*(opt.dip||1);
   const drain=clamp(clamp(r.total/((brush?620:1500)*u),.1,brush?1.15:.85)
                *R(.7,1.3)*(opt.drain||1),.04,2.6);
+  const taper=opt.taper===undefined?"both":opt.taper;
+  /* the brush is a bundle of hairs: a soft full-width body, a darker
+     spine, ragged whisker edges, and dry strands that take over as the
+     bundle starves. Each is a layer of the same ribbon, gated by smooth
+     noise so it breaks into STREAKS along the line — never dots. */
+  const layers=[
+    {off:0,wf:1,  al:.5,kind:"core",gf:R(22,34),gp:R(0,6.28),g2:R(0,6.28)},
+    {off:0,wf:.8, al:.8,kind:"core",gf:R(22,34),gp:R(0,6.28),g2:R(0,6.28)},
+    {off:0,wf:.55,al:.95,kind:"core",gf:R(22,34),gp:R(0,6.28),g2:R(0,6.28)},
+    {off: .38,wf:.1,al:brush?.22:.13,kind:"whisker",gf:R(50,80),gp:R(0,6.28),g2:R(0,6.28)},
+    {off:-.38,wf:.1,al:brush?.22:.13,kind:"whisker",gf:R(50,80),gp:R(0,6.28),g2:R(0,6.28)}
+  ];
+  /* feathered edges belong to the great sweeps — the contour, a long
+     fall — never to a feature put down in one press */
+  const longStroke=r.total>800*u;
+  const ns=brush?3:2;
+  for(let k2=0;k2<ns;k2++)
+    layers.push({off:R(-.34,.34),wf:R(.15,.26),al:.75,kind:"dry",
+      gf:R(34,60),gp:R(0,6.28),g2:R(0,6.28)});
+  /* the base width at every sample — the ribbon's edges must be shared
+     EXACTLY between neighbouring segments, or the line staircases */
+  const WS=new Array(n);
+  for(let i=0;i<n;i++){
+    const a=A[i];
+    const ld=Math.max(0,dip-a*drain);
+    let w=W0*(1+amp*Math.sin(a*f1*6.28+ph1)+(brush?.07:.04)*Math.sin(a*f2*6.28+ph2));
+    w*=.7+.3*Math.min(1,ld);                     /* a drying line thins   */
+    if(a<.05&&ld>.8)w*=1.1;                      /* the loaded touch-down */
+    if(taper==="both"||taper==="start")
+      if(a<.06)w*=.45+.55*Math.pow(a/.06,.7);
+    if(taper==="both"||taper==="end")
+      if(a>.93)w*=.3+.7*Math.pow((1-a)/.07,.8);
+    WS[i]=w;
+  }
+  /* a ply's edge at a given sample, identical from either side */
+  const edge=(L,i,sign)=>{
+    const a=A[i],w=WS[i];
+    const offc=(L.off+.05*Math.sin(a*9+L.gp))*w;
+    const wh=L.wf*w*.5*(.95+.05*Math.sin(a*L.gf*.9+L.g2));
+    return [P[i][0]+NX[i]*(offc+sign*wh),P[i][1]+NY[i]*(offc+sign*wh)];
+  };
   ctx.fillStyle=MAT_INK;
   const ga0=ctx.globalAlpha;
-  const taper=opt.taper===undefined?"both":opt.taper;
-  /* the dry passage breaks into bristle streaks: a fixed offset pair */
-  const dox=R(-.3,.3),doy=R(-.3,.3);
-  for(let i=0;i<r.pts.length;i++){
-    const a=r.along[i];
-    const ld=Math.max(0,dip-a*drain);             /* ink left in the hairs */
-    let w=W0*(1+amp*Math.sin(a*f1*6.28+ph1)+ (brush?.14:.05)*Math.sin(a*f2*6.28+ph2));
-    w*=.8+.2*Math.min(1,ld);                      /* a drying line thins   */
-    if(a<.05&&ld>.8)w*=1.08;                      /* the loaded touch-down */
-    if(taper==="both"||taper==="start")
-      if(a<.06)w*=.5+.5*Math.pow(a/.06,.7);
-    if(taper==="both"||taper==="end")
-      if(a>.93)w*=.35+.65*Math.pow((1-a)/.07,.8);
-    /* drying ink does not turn grey — the line THINS, its edge roughens,
-       and it breaks into small solid granules with bare paper between */
-    let al=R(.92,1);
-    if(ld<.45){
-      const dry=Math.max(0,ld/.45);
-      w*=.42+.58*dry;                             /* the line starves thin */
-      if(rnd()<(brush?.5:.35)*(1-dry)){           /* paper breaks through  */
-        if(rnd()<.6){                             /* …past a solid granule */
-          ctx.globalAlpha=ga0*R(.72,.95);
-          stamp(ctx,r.pts[i][0]+dox*w,r.pts[i][1]+doy*w,w*R(.16,.34));
-        }
-        continue;
-      }
-      if(brush&&rnd()<.5){                        /* split into dark strands */
-        ctx.globalAlpha=ga0*R(.78,.96);
-        stamp(ctx,r.pts[i][0]+dox*w*.55,r.pts[i][1]+doy*w*.55,w*R(.22,.36));
-        stamp(ctx,r.pts[i][0]-dox*w*.45,r.pts[i][1]-doy*w*.45,w*R(.18,.3));
-        continue;
-      }
-      al*=.78+.22*dry;                            /* barely lighter, never grey */
+  const aph=R(0,6.28),aph2=R(0,6.28);
+  let capDone=false,lastW=0,lastI=0;
+  for(let i=0;i<n-1;i++){
+    const a=(A[i]+A[i+1])/2;
+    const ld=Math.max(0,dip-a*drain);            /* ink left in the hairs */
+    const wet=Math.min(1,ld/.6);                 /* 1 loaded … 0 starved  */
+    if(Math.max(WS[i],WS[i+1])<.3*u)continue;
+    /* the ink's own gradual breath: smooth along the stroke, no flicker */
+    const breath=.92+.08*Math.sin(a*17+aph)*Math.sin(a*5.3+aph2);
+    const fade=.3+.7*Math.min(1,ld+.15);         /* the gradual fading    */
+    for(const L of layers){
+      if((L.kind==="whisker"||L.kind==="dry")&&!longStroke)continue;
+      const T=L.kind==="core"?-2.4+(1-wet)*2.9   /* the body breaks up dry */
+             :L.kind==="whisker"?.9              /* edges always feathered */
+             :-.5+wet*2.8;                       /* dry strands take over  */
+      const g=Math.sin(a*L.gf+L.gp)+.7*Math.sin(a*L.gf*2.7+L.g2);
+      if(g<T)continue;
+      let al=L.al*fade*breath;
+      /* near the gate's edge the streak itself fades out, never snaps */
+      if(g-T<.45)al*=(g-T)/.45;
+      ctx.globalAlpha=ga0*Math.min(1,al);
+      const e0=edge(L,i,1),e1=edge(L,i+1,1),e2=edge(L,i+1,-1),e3=edge(L,i,-1);
+      /* a hair of overlap along the path hides the joins between quads —
+         but only in dark passages; in pale ones the doubled ink would
+         print a ladder of rungs */
+      let tx=P[i+1][0]-P[i][0],ty=P[i+1][1]-P[i][1];
+      const ov=al>.62?.6*u:0;
+      const td=Math.hypot(tx,ty)||1;tx=tx/td*ov;ty=ty/td*ov;
+      ctx.beginPath();
+      ctx.moveTo(e0[0],e0[1]);
+      ctx.lineTo(e1[0]+tx,e1[1]+ty);
+      ctx.lineTo(e2[0]+tx,e2[1]+ty);
+      ctx.lineTo(e3[0],e3[1]);
+      ctx.closePath();ctx.fill();
     }
-    ctx.globalAlpha=ga0*al;
-    stamp(ctx,r.pts[i][0]+R(-.06,.06)*w,r.pts[i][1]+R(-.06,.06)*w,w*.5);
+    /* the loaded touch-down rounds the start of the stroke */
+    if(!capDone&&WS[i]>1.6*u&&wet>.5){
+      ctx.globalAlpha=ga0*Math.min(1,.92*fade);
+      mblob(ctx,P[i][0],P[i][1],WS[i]*.46);
+      capDone=true;
+    }
+    lastW=WS[i+1];lastI=i;
   }
-  /* the pen bites where it first touches the sheet */
-  if(!brush&&(taper==="end"||taper==="none")&&rnd()<.6){
-    ctx.globalAlpha=ga0*.95;
-    stamp(ctx,r.pts[0][0],r.pts[0][1],W0*R(.55,.8));
+  /* a blunt ending only where the line stops still wet and untapered */
+  if(lastW>1.8*u&&taper!=="both"&&taper!=="end"){
+    const ldE=Math.max(0,dip-drain);
+    if(ldE>.55){
+      ctx.globalAlpha=ga0*Math.min(1,.9*(.3+.7*Math.min(1,ldE+.15)));
+      mblob(ctx,P[lastI+1][0],P[lastI+1][1],lastW*.44);
+    }
   }
   ctx.globalAlpha=ga0;
 }
 
-/* ink gathers where the line turns hard: a tiny pooled swell */
-function mpool(ctx,x,y,r){
-  if(MAT_MED==="crayon")return;
+/* a small irregular ink blob — for pools and dots; never a neat circle */
+function mblob(ctx,x,y,r){
   ctx.fillStyle=MAT_INK;
-  const ga=ctx.globalAlpha;ctx.globalAlpha=ga*R(.8,.95);
-  stamp(ctx,x+R(-.2,.2)*r,y+R(-.2,.2)*r,r);
-  ctx.globalAlpha=ga;
+  const a1=R(.1,.3),a2=R(.05,.2),p1=R(0,6.28),p2=R(0,6.28);
+  ctx.beginPath();
+  for(let i=0;i<=16;i++){
+    const t=i/16*2*Math.PI;
+    const rr=r*(1+a1*Math.sin(t+p1)+a2*Math.sin(2*t+p2));
+    const px=x+Math.cos(t)*rr,py=y+Math.sin(t)*rr;
+    if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py);
+  }
+  ctx.closePath();ctx.fill();
 }
+
 
 /* an elliptical arc as control points (for mline) */
 function mArcPts(cx,cy,rx,ry,a0,a1,rot,n){
@@ -3994,23 +4064,12 @@ function* matissePhase(seed,fmtKey,subjKey,statusCb,prog,design,touches){
         hctx.globalAlpha=1;
       }else{
         hctx.globalAlpha=R(.88,.98);
-        stamp(hctx,st.dot[0],st.dot[1],dr);
+        mblob(hctx,st.dot[0],st.dot[1],dr);
         hctx.globalAlpha=1;
       }
     }else if(st.pts&&st.pts.length>1){
       mline(hctx,st.pts,nib*(st.w||1),{taper:st.taper,
         press:tch&&tch.press,dip:tch&&tch.dip,drain:tch&&tch.drain});
-      /* ink gathers at the hardest turns */
-      if(MAT_MED!=="crayon"&&rnd()<.3){
-        let best=0,bi=-1;
-        for(let i=1;i<st.pts.length-1;i++){
-          const a1=Math.atan2(st.pts[i][1]-st.pts[i-1][1],st.pts[i][0]-st.pts[i-1][0]);
-          const a2=Math.atan2(st.pts[i+1][1]-st.pts[i][1],st.pts[i+1][0]-st.pts[i][0]);
-          let d=Math.abs(a2-a1);if(d>Math.PI)d=2*Math.PI-d;
-          if(d>best){best=d;bi=i;}
-        }
-        if(bi>0&&best>.7)mpool(hctx,st.pts[bi][0],st.pts[bi][1],nib*(st.w||1)*R(.5,.75));
-      }
     }
     prog.done++;
     yield;
