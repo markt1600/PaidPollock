@@ -181,8 +181,14 @@ satin-stitched centre rosette.
 - **The garden composition** — alongside the classic medallion, each
   commission can roll (or the AI designer can choose) an all-over
   botanical *garden* in the manner of the maison's great jungle scarves:
-  a **fractal flora engine** (fronds whose branches are smaller fronds,
-  one grammar from canopy to sprig) lays dark under-canopy silhouettes,
+  a **fractal engine with six families** — fern fronds, coral branches
+  with polyp-knot tips, scrollwork volutes that spawn counter-volutes,
+  plumes with hairline barbs, ray bursts whose spokes end in
+  mini-bursts, and forking ribbon meanders — rolled per piece with
+  family-weighted odds (kelp-leaning coral for Chaîne, plumes and
+  ribbons for Cavalcade, ferns for Jardin), so leaves appear in some
+  designs and none at all in others; a separate roll decides how much
+  fractal a medallion carries (rich, wreath-only, corners-only, or none) lays dark under-canopy silhouettes,
   arcing palm crowns, corner spills, wandering vines with berries,
   clustered flower-burst colour stories with stray blooms, small far-off
   birds — balanced asymmetry, massed forms, no geometric scaffold. The
