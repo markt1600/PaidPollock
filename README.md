@@ -1,9 +1,8 @@
 # The Atelier
 
-A generative studio in four wings — Jackson Pollock drip paintings, Joan
-Miró dream paintings, Henri Matisse line drawings, and Hermès-style
-embroidered silk carrés. Pure static HTML/JS — no build step, no
-dependencies, ready for Vercel.
+A generative studio in three wings — Jackson Pollock drip paintings,
+Joan Miró dream paintings, and Henri Matisse line drawings. Pure static
+HTML/JS — no build step, no dependencies, ready for Vercel.
 
 ## Features
 - **Physically simulated pours** — the engine models the artist's hand moving
@@ -213,11 +212,17 @@ the recipe, so AI-touched sheets rehang pixel-identically with no API
 call, and the curator labels the finished sheet in the voice of a
 curator of modern French drawing.
 
-## The silk wing — embroidered carrés
+## A dormant wing — the silk carrés (disabled)
 
-A **Collection** chooser at the top of the controls switches between the
-two wings. *Jackson Pollock* (the default) is the painting studio.
-*Hermès Scarves* commissions square silk twill carrés, 90 × 90 cm, in the
+The Hermès-style silk wing is **not currently listed** in the Collection
+chooser, but its entire implementation remains in the codebase — the
+embroidery engine, colourways, motifs, the AI illustrator, the silk
+liner and framing, and the ledge's server-side support all stay intact
+and tested. To restore it, uncomment the single `["scarf", …]` line in
+the `colls` array inside `buildChips()` in `index.html`. The
+documentation below describes the wing as built.
+
+When enabled it commissions square silk twill carrés, 90 × 90 cm, in the
 classic carré grammar: printed border band with stitched gold keylines, a
 motif row repeated on all four sides, corner ornaments, a diamond field
 lattice, gold medallion rings with a twelve-fold radial garland, and a
@@ -282,10 +287,11 @@ satin-stitched centre rosette.
   with picked gold hem stitches around the perimeter.
 
 Carrés are square only (the format chooser hides; likewise the motif
-chooser hides in the painting wing), fully seeded and deterministic, live
+chooser appears only in this wing), fully seeded and deterministic, live
 on the communal ledge alongside the paintings (server-sanitised
 mode/motif/design), and the AI curator writes their labels in the voice
-of a great maison.
+of a great maison. Old carrés already resting on a communal ledge still
+rehang pixel-identically even while the wing is unlisted.
 
 **Calm by construction** — every designed stroke is smoothed through
 corner-cutting (Chaikin) passes into one continuous flowing thread, the

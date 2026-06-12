@@ -330,7 +330,7 @@ canvas#view{display:block;background:#e7e0cd}
 <aside>
   <div class="brand">
     <h1>The<br>Atelier <em>·</em></h1>
-    <p>An algorithmic studio. Commission a Jackson Pollock pour — flung, dripped and pooled in enamel — a Joan Miró dream painted in ink, crayon and oil, a Henri Matisse line drawing in a few confident strokes, or a hand-embroidered silk carré. All finished at archival resolution.</p>
+    <p>An algorithmic studio. Commission a Jackson Pollock pour — flung, dripped and pooled in enamel — a Joan Miró dream painted in ink, crayon and oil, or a Henri Matisse line drawing in a few confident strokes. All finished at archival resolution.</p>
   </div>
 
   <div class="field">
@@ -375,7 +375,7 @@ canvas#view{display:block;background:#e7e0cd}
 
   <div class="status" id="status" aria-live="polite"></div>
 
-  <p class="fineprint">Paintings are thrown over about three seconds — physics-simulated pours under real gravity. Dream paintings are worked in ink, wax crayon and oil. Line drawings unfold stroke by stroke in pen, brush or crayon on wove paper. Carrés are stitched thread by thread with hand-rolled hems. Everything renders at up to 4,400&nbsp;px; downloads include your chosen frame. No two commissions repeat.</p>
+  <p class="fineprint">Paintings are thrown over about three seconds — physics-simulated pours under real gravity. Dream paintings are worked in ink, wax crayon and oil. Line drawings unfold stroke by stroke in pen, brush or crayon on wove paper. Everything renders at up to 4,400&nbsp;px; downloads include your chosen frame. No two commissions repeat.</p>
 </aside>
 
 <main>
@@ -5402,8 +5402,10 @@ function buildChips(){
   const colls=[
     ["pollock","Jackson Pollock","enamel pours on canvas"],
     ["miro","Joan Miró","dream paintings in oil"],
-    ["matisse","Henri Matisse","line drawings in ink"],
-    ["scarf","Hermès Scarves","embroidered silk carrés"]
+    ["matisse","Henri Matisse","line drawings in ink"]
+    /* the silk wing is dormant: its engine, AI illustrator, framing and
+       ledge support remain intact — uncomment to restore it:
+    ,["scarf","Hermès Scarves","embroidered silk carrés"] */
   ];
   for(const [k,label,sub] of colls){
     const b=document.createElement("button");
