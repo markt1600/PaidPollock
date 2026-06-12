@@ -220,6 +220,15 @@ on the communal ledge alongside the paintings (server-sanitised
 mode/motif/design), and the AI curator writes their labels in the voice
 of a great maison.
 
+**Calm by construction** — every designed stroke is smoothed through
+corner-cutting (Chaikin) passes into one continuous flowing thread, the
+designer's brief demands few long connected curves with satin lying
+along the silhouette, medallion sprays and wreaths fold airy fractal
+styles back into composed scrollwork at full stitch weight, and the
+silk finish carries none of the oil wing's debris, fibres or ageing
+mottle — a pressed carré, not a painted one. Framed scarves rest on a
+naked-silk liner with a quiet diagonal sheen rather than raw linen.
+
 **The AI designer** — with the AI toggle on, each fresh carré begins
 with Claude as head designer: it chooses the composition (garden or
 medallion), sets the density, places the colour-accent regions for a

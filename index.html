@@ -219,6 +219,7 @@ main::after{ /* faint floor line */
     rgba(20,14,6,.10));
 }
 .framewrap .liner{background:#eee8d8;transition:padding .2s;line-height:0}
+.framewrap.silkliner .liner{background:linear-gradient(135deg,#f6f1e5 0%,#efe9da 45%,#f7f2e7 100%)}
 canvas#view{display:block;background:#e7e0cd}
 /* frame styles (preview) */
 .framewrap.f-none{padding:0;background:transparent}
@@ -1121,7 +1122,8 @@ function* pour(ctx,opts){
 /* the varnish pass: light the accumulated height field from the upper
    left — ridges catch light, valleys shade, enamel beads specular gloss,
    bare canvas stays matte cloth — then add the photographer's key light. */
-function* finishRelief(ctx,hm,W,H,u,prog){
+function* finishRelief(ctx,hm,W,H,u,prog,opts){
+  const SILK=!!(opts&&opts.silk);
   const hx2=hm.getContext("2d");
   hx2.setTransform(1,0,0,1,0,0);
   const hw=hm.width,hh=hm.height;
@@ -1233,13 +1235,14 @@ function* finishRelief(ctx,hm,W,H,u,prog){
   ctx.drawImage(hm,0,0,W,H);
 
   /* ---- material truth ---- */
-  /* studio debris: dust, fibres, the odd nib settled into the paint */
-  const debris=Math.round((W*H)/(4400*2933)*150);
+  /* studio debris: dust, fibres, the odd nib settled into the paint —
+     none of which belongs on a pressed silk carré */
+  const debris=SILK?0:Math.round((W*H)/(4400*2933)*150);
   for(let i=0;i<debris;i++){
     ctx.fillStyle=rnd()<.6?"rgba(52,42,30,0.45)":"rgba(238,233,219,0.4)";
     stamp(ctx,rnd()*W,rnd()*H,R(.25,.85)*u);
   }
-  const fibres=RI(7,15);
+  const fibres=SILK?0:RI(7,15);
   ctx.fillStyle="rgba(60,50,36,0.32)";
   for(let i=0;i<fibres;i++){
     let fx=rnd()*W, fy=rnd()*H, fa=R(0,6.2832);
@@ -1260,14 +1263,14 @@ function* finishRelief(ctx,hm,W,H,u,prog){
   for(let i=0;i<gImg.data.length;i+=4){
     const lite=rnd()<.5;
     gImg.data[i]=gImg.data[i+1]=gImg.data[i+2]=lite?245:18;
-    gImg.data[i+3]=(rnd()*13)|0;
+    gImg.data[i+3]=(rnd()*(SILK?6:13))|0;
   }
   gtc.putImageData(gImg,0,0);
   ctx.fillStyle=ctx.createPattern(gt,"repeat");
   ctx.fillRect(0,0,W,H);
 
-  /* cloudy mottle: two octaves of soft unevenness — ageing, gloss, light */
-  for(const oct of [[24,.028],[96,.022]]){
+  /* cloudy mottle: ageing oil and gloss — paint only, never silk */
+  for(const oct of SILK?[]:[[24,.028],[96,.022]]){
     const mt=document.createElement("canvas");
     mt.width=mt.height=oct[0];
     const mtc=mt.getContext("2d");
@@ -2696,6 +2699,22 @@ const FAM_FROND={
   cavalcade:{leaf:.17,leafW:.55,gap:.075},  /* rounded laurel */
   jardin:{leaf:.14,leafW:.34,gap:.05}       /* garden fern */
 };
+/* corner-cutting smoothing: an angular polyline becomes one flowing thread */
+function chaikin(pts,iters){
+  for(let k=0;k<iters;k++){
+    if(pts.length<3)break;
+    const out=[pts[0]];
+    for(let i=0;i<pts.length-1;i++){
+      const a=pts[i],b=pts[i+1];
+      out.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25]);
+      out.push([a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75]);
+    }
+    out.push(pts[pts.length-1]);
+    pts=out;
+  }
+  return pts;
+}
+
 /* paint a designed stroke group at any position and scale */
 function drawDesignStrokes(ctx,strokes,cx,cy,RAD,THREADS,wTh,mirror,u){
   const pass=()=>{
@@ -2703,9 +2722,9 @@ function drawDesignStrokes(ctx,strokes,cx,cy,RAD,THREADS,wTh,mirror,u){
       ctx.fillStyle=THREADS[st.c]||THREADS[1];
       const w=wTh*(0.55+0.3*(st.w||1));
       if(st.t==="line"&&st.pts&&st.pts.length>1){
-        for(let j=1;j<st.pts.length;j++)
-          eline(ctx,cx+st.pts[j-1][0]*RAD,cy+st.pts[j-1][1]*RAD,
-                    cx+st.pts[j][0]*RAD,cy+st.pts[j][1]*RAD,w,.06);
+        const sm=chaikin(st.pts.map(p=>[cx+p[0]*RAD,cy+p[1]*RAD]),2);
+        for(let j=1;j<sm.length;j++)
+          eline(ctx,sm[j-1][0],sm[j-1][1],sm[j][0],sm[j][1],w,.06);
       }else if(st.t==="arc"){
         earc(ctx,cx+st.x*RAD,cy+st.y*RAD,st.rx*RAD,st.ry*RAD,
              st.a0*Math.PI/180,st.a1*Math.PI/180,(st.rot||0)*Math.PI/180,w,.06);
@@ -2806,6 +2825,12 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   const fu=rnd();
   V.frUse=fu<.45?"rich":fu<.65?"wreath":fu<.85?"corners":"none";
   const FOPT=()=>({u,w:2.2*u,...(FAM_FROND[motif]||FAM_FROND.jardin)});
+  /* on the medallion's quiet architecture, sprays and wreaths stay
+     composed: airy styles fold back into scrollwork */
+  const CALM={fern:"fern",coral:"coral",scroll:"scroll",
+              plume:"scroll",burst:"scroll",ribbon:"scroll"};
+  V.fr1c=CALM[V.fr1]||"scroll";
+  V.fr2c=CALM[V.fr2]||"scroll";
 
   const jobs=[];
   const J=(c,label,fn)=>jobs.push({c,label,fn});
@@ -3048,7 +3073,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
             knot(hctx,mxp,yc,wTh*.8);
           }else if(V.frUse!=="none"){
             const ff={...FOPT(),w:1.5*u};
-            fractal(hctx,V.fr1,mxp,yc+.012*S,-Math.PI/2,.022*S,ff,0,null,gold);
+            fractal(hctx,V.fr1c,mxp,yc+.012*S,-Math.PI/2,.022*S,ff,0,null,gold);
           }else{
             hctx.fillStyle=gold;
             knot(hctx,mxp,yc,wTh*.7);
@@ -3103,7 +3128,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
           eline(hctx,x-d2,y-d2,x+d2,y+d2,wTh*.4,.03);
           eline(hctx,x-d2,y+d2,x+d2,y-d2,wTh*.4,.03);
         }else if(rnd()<.5&&V.frUse!=="none"){
-          fractal(hctx,V.fr2,x,y,R(0,6.28),.026*S,
+          fractal(hctx,V.fr2c,x,y,R(0,6.28),.026*S,
             {...FOPT(),w:1.6*u,gap:.1},0,null,hctx.fillStyle);
         }
         else if(motif==="chaine")earc(hctx,x,y,sz,sz,0,6.2832,0,wTh*.6,.05);
@@ -3254,15 +3279,15 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   /* fractal corner sprays: the family's leaf spills into the field */
   if(!GARDEN&&(V.frUse==="rich"||V.frUse==="corners")
      &&!(design&&design.satellite&&design.satellite.length))
-  J(pal.flora[1],FR_LABEL[V.fr1]+", corner sprays",function*(){
-    const ff={...FOPT(),w:2*u};
+  J(pal.flora[1],FR_LABEL[V.fr1c]+", corner sprays",function*(){
+    const ff={...FOPT(),w:2.6*u};
     const F=pal.flora, dk=darkThread(F[3]);
     const cc=b1+.055*S;
     withSym(hctx,4,cx2,cy2,()=>{
       const n=3+((rnd()*2)|0);
       for(let k=0;k<n;k++){
         const a=Math.PI/4+1.1*(k/Math.max(1,n-1)-.5)+R(-.06,.06);
-        fractal(hctx,V.fr1,cc,cc,a,S*R(.11,.17),ff,0,dk,F[1+(k%2)]);
+        fractal(hctx,V.fr1c,cc,cc,a,S*R(.11,.17),ff,0,dk,F[1+(k%2)]);
       }
       if(rnd()<.6){
         hctx.fillStyle=pal.accents[0];
@@ -3273,14 +3298,14 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   /* a stitched wreath hugging the medallion — in the rolled style */
   if(!GARDEN&&(V.frUse==="rich"||V.frUse==="wreath"))
-  J(pal.flora[2],FR_LABEL[V.fr1]+" wreath",function*(){
-    const ff={...FOPT(),w:1.8*u};
+  J(pal.flora[2],FR_LABEL[V.fr1c]+" wreath",function*(){
+    const ff={...FOPT(),w:2.2*u};
     const MR=V.medR*S;
     const nW=18+((rnd()*8)|0);
     for(let i=0;i<nW;i++){
       const a=i*2*Math.PI/nW+R(-.04,.04);
       const x=cx2+Math.cos(a)*(MR+.022*S), y=cy2+Math.sin(a)*(MR+.022*S);
-      fractal(hctx,V.fr1,x,y,a+Math.PI/2*(i%2?1:-1),S*R(.045,.07),
+      fractal(hctx,V.fr1c,x,y,a+Math.PI/2*(i%2?1:-1),S*R(.045,.07),
         {...ff,curl:(i%2?1:-1)*R(.6,1)},0,null,pal.flora[1+(i%2)]);
       if(i%6===5)yield;
     }
@@ -3339,7 +3364,7 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
 /* silk, not enamel: twill lustre, drape, a hand-rolled hem */
 function* silkFinish(C,statusCb,prog){
   statusCb(0,0,null);
-  yield* finishRelief(hctx,C.hm,C.W,C.H,C.u,prog);
+  yield* finishRelief(hctx,C.hm,C.W,C.H,C.u,prog,{silk:true});
   REL=null;
   const S=C.W,u=C.u;
 
@@ -3382,9 +3407,9 @@ function* silkFinish(C,statusCb,prog){
     for(let j2=0;j2<=steps;j2++){
       const tt=(j2/steps-.5)*len;
       const fade=Math.sin(Math.PI*j2/steps);
-      hctx.fillStyle=`rgba(22,18,40,${(.005*fade).toFixed(4)})`;
+      hctx.fillStyle=`rgba(22,18,40,${(.004*fade).toFixed(4)})`;
       stamp(hctx,wx+ca*tt-sa*wid*.4,wy+sa*tt+ca*wid*.4,wid*.8);
-      hctx.fillStyle=`rgba(255,255,250,${(.006*fade).toFixed(4)})`;
+      hctx.fillStyle=`rgba(255,255,250,${(.0045*fade).toFixed(4)})`;
       stamp(hctx,wx+ca*tt+sa*wid*.4,wy+sa*tt-ca*wid*.4,wid*.75);
     }
     yield;
@@ -3626,7 +3651,7 @@ Stroke types:
 {"t":"arc","c":0-3,"w":1-3,"x":..,"y":..,"rx":..,"ry":..,"a0":deg,"a1":deg,"rot":deg} — a stitched elliptical arc.
 {"t":"satin","c":0-3,"x":..,"y":..,"ang":deg,"len":..,"wid":..} — a filled satin-stitch leaf/petal/patch from (x,y) along ang.
 {"t":"knot","c":0-3,"x":..,"y":..,"r":..} — a french knot (eyes, studs, buds).
-Be AMBITIOUS: use 45–100 strokes for the centrepiece — a richly worked single subject (a full-rigged ship, a horse with saddle and bridle detail, a dense bouquet) with interior detail, layered satin masses, decorative framing flourishes — plus up to 30 for the satellite group. Detail beats sparseness here; the maison's clients expect density. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
+CALM AND FLOWING above all: a carré is a thing of serenity. Build the subject from a FEW LONG CONTINUOUS curves — each line stroke one graceful path of 10–28 points tracing a gentle arc (no zigzags, no sharp corners; the atelier smooths every polyline into a single unbroken thread). Every stroke must touch or overlap the main silhouette so the design reads as ONE connected figure — never a scatter of floating fragments. Satin patches stay small (len<=0.3) and lie along the silhouette like feathers or petals, never as large slabs and never adrift. Use 30–70 well-joined strokes for a richly worked but tranquil subject (a full-rigged ship, a standing horse with bridle, a composed bouquet), plus up to 24 for the satellite group, in the same connected manner. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
   const out=await askClaude([{type:"text",text:txt+txt2}],4800);
   return sanitizeDesign(parseLooseJSON(out));
 }
@@ -4096,6 +4121,8 @@ function syncControls(){
 /* the two wings of the atelier share one set of controls */
 function syncModeUI(){
   const SC=state.mode==="scarf", MI=state.mode==="miro";
+  {const fwEl=document.getElementById("framewrap");
+   if(fwEl&&fwEl.classList)fwEl.classList.toggle("silkliner",SC);}
   document.getElementById("fieldFormat").hidden=SC;
   document.getElementById("fieldMotif").hidden=!SC;
   document.getElementById("lab-palette").textContent=SC?"Colourway":MI?"Palette":"Enamel palette";
@@ -4498,9 +4525,19 @@ function buildFramed(){
   out.width=W;out.height=H;
   const c=out.getContext("2d");
 
-  /* linen liner */
-  c.fillStyle="#ece6d6";
+  /* the liner: raw linen for a painting, naked silk for a carré */
+  const SILKL=state.mode==="scarf";
+  c.fillStyle=SILKL?"#f4efe2":"#ece6d6";
   c.fillRect(fw,fw,W-2*fw,H-2*fw);
+  if(SILKL){ /* a quiet diagonal sheen across the silk margin */
+    const g0=c.createLinearGradient(fw,fw,W-fw,H-fw);
+    g0.addColorStop(0,"rgba(255,255,252,0)");
+    g0.addColorStop(.42,"rgba(255,255,252,.16)");
+    g0.addColorStop(.55,"rgba(214,206,186,.10)");
+    g0.addColorStop(1,"rgba(255,255,252,0)");
+    c.fillStyle=g0;
+    c.fillRect(fw,fw,W-2*fw,H-2*fw);
+  }
   c.strokeStyle="rgba(90,72,44,.35)";
   c.lineWidth=Math.max(2,fw*.03);
   c.strokeRect(fw+liner-c.lineWidth/2,fw+liner-c.lineWidth/2,
