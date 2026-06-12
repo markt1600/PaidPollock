@@ -2093,20 +2093,26 @@ function oblob(ctx,cx,cy,r,squash,ang,scrub){
   ctx.moveTo(pts[0][0],pts[0][1]);
   for(const p of pts)ctx.lineTo(p[0],p[1]);
   ctx.closePath();ctx.fill();
-  /* paint body: a ridge just inside the edge, depth settling the middle —
+  /* paint body: an uneven ridge inside the edge, depth in the middle —
      never embossing the bare paper beyond the paint */
-  for(let i=0;i<pts.length;i+=2)
-    hstamp(cx+(pts[i][0]-cx)*.82,cy+(pts[i][1]-cy)*.82,r*.12,.1);
-  for(let i=0;i<10;i++)hstamp(cx+R(-.45,.45)*r,cy+R(-.45,.45)*r*sq,r*.28,.05);
+  for(let i=0;i<pts.length;i+=2){
+    if(rnd()<.3)continue;
+    const ins=R(.7,.9);
+    hstamp(cx+(pts[i][0]-cx)*ins,cy+(pts[i][1]-cy)*ins,r*R(.08,.16),R(.06,.11));
+  }
+  for(let i=0;i<10;i++)hstamp(cx+R(-.45,.45)*r,cy+R(-.45,.45)*r*sq,r*R(.18,.34),.05);
   return pts;
 }
 function odisc(ctx,cx,cy,r){
   ctx.beginPath();ctx.arc(cx,cy,r,0,6.2832);ctx.fill();
-  for(let i=0;i<8;i++){
-    const a=i*.785;
-    hstamp(cx+Math.cos(a)*r*.68,cy+Math.sin(a)*r*.68,r*.15,.09);
+  /* the paint settles unevenly: scattered swells, never a neat ring */
+  const n=5+((rnd()*5)|0);
+  for(let i=0;i<n;i++){
+    const a=i*6.2832/n+R(-.45,.45);
+    const rr=r*R(.3,.78);
+    hstamp(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,r*R(.1,.22),R(.05,.11));
   }
-  hstamp(cx,cy,r*.5,.05);
+  hstamp(cx+R(-.15,.15)*r,cy+R(-.15,.15)*r,r*R(.35,.55),.05);
 }
 function oring(ctx,cx,cy,r,w){
   const n=Math.max(10,Math.round(6.28*r/(w*.42)));
@@ -2171,8 +2177,10 @@ function omoon(ctx,cx,cy,r,ang){
   }
   ctx.closePath();ctx.fill();
   for(let i=0;i<pts.length;i+=4){
-    const x=cx+(pts[i][0]*ca-pts[i][1]*sa)*.82, y=cy+(pts[i][0]*sa+pts[i][1]*ca)*.82;
-    hstamp(x,y,r*.1,.09);
+    if(rnd()<.3)continue;
+    const ins=R(.7,.88);
+    const x=cx+(pts[i][0]*ca-pts[i][1]*sa)*ins, y=cy+(pts[i][0]*sa+pts[i][1]*ca)*ins;
+    hstamp(x,y,r*R(.07,.13),R(.06,.1));
   }
 }
 function oladder(ctx,cx,cy,h,ang,u){
