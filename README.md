@@ -1,8 +1,9 @@
 # The Atelier
 
-A generative studio in three wings — Jackson Pollock drip paintings,
-Joan Miró dream paintings, and Henri Matisse line drawings. Pure static
-HTML/JS — no build step, no dependencies, ready for Vercel.
+A generative studio in four wings — Jackson Pollock drip paintings,
+Joan Miró dream paintings, Henri Matisse line drawings, and Keita-ish
+Tokyo nocturnes lit by one glowing machine. Pure static HTML/JS — no
+build step, no dependencies, ready for Vercel.
 
 ## Features
 - **Physically simulated pours** — the engine models the artist's hand moving
@@ -168,9 +169,11 @@ warm wove paper. There is no palette — in its place a **Subject** chooser:
   The brush is loaded at the crown and visibly starves on the way
   round.
 - **Flowers** — a vase floating free on the sheet (no table line), a
-  few stems fanning into anemones, tulips, loose rose spirals and buds
-  (never a star-burst), and the signature broad lobed leaf with its
-  midrib — pure line work, never a filled mass.
+  few stems fanning into blossoms of fat rounded lobes — each petal one
+  flowing loop out from the heart and home again, never a pointed arc
+  or a star-burst — with loose rose spirals, buds, and the signature
+  broad lobed leaf with its midrib. Pure line work, never a filled
+  mass.
 
 Every sheet rolls its **medium** from the seed (faces are always brush
 drawings, as the masks were) — pen and Indian ink,
@@ -211,6 +214,37 @@ Both the sanitised drawing and the ink master's touches are recorded in
 the recipe, so AI-touched sheets rehang pixel-identically with no API
 call, and the curator labels the finished sheet in the voice of a
 curator of modern French drawing.
+
+## The nocturne wing — Keita-ish Tokyo nights
+
+*Keita-ish* paints the city after the last train: one glowing protagonist
+against a teal-green dark, in the spirit of the contemporary Tokyo
+nocturne. It is the atelier's first **light-based engine** — the picture
+is built as light, not strokes.
+
+Three scenes:
+- **Vending machine** — the jihanki blazing in a lane, sometimes with a
+  dimmer neighbour, the wall remembering posters and a downpipe.
+- **Phone box** — a warm amber booth on an empty road, guardrail,
+  telephone poles, far streetlamps, the green evening behind.
+- **Corner store** — the all-night shopfront: a lit fascia with its
+  stripes (never quite anyone's trademark), shelves of colour behind the
+  glass, the brightest doorway, bins, sometimes a brick pier.
+
+The engine's grammar: a night gradient in teal or blue, silhouetted
+rooflines with a window or two still awake, sagging wires, the glowing
+object built panel by panel, additive halation (a darkened copy of the
+painting laid back over itself so the lights bleed), the pool of light
+breaking into painterly dapples on the asphalt, and a faceless figure —
+back turned, hooded or bucket-hatted — whose near side catches the lamp
+and whose lit contour is retraced as a rim. A final pass adds an oil
+overlay, vignette and grain so nothing reads machine-smooth.
+
+Nocturnes are seeded and deterministic like everything else, live on the
+communal ledge (mode + scene server-sanitised), take any format, and the
+AI curator writes their labels in the voice of a quiet contemporary
+curator. The AI director does not retouch them — the night is painted by
+the house alone.
 
 ## A dormant wing — the silk carrés (disabled)
 

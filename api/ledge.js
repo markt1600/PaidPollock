@@ -18,6 +18,7 @@ const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
 const MOTIFS = ["chaine", "cavalcade", "jardin"];
 const MIRO_PALETTES = ["reve", "constellation", "bleu", "nocturne", "terre"];
 const SUBJECTS = ["visage", "fleurs"];
+const KEITA_SCENES = ["jihanki", "denwa", "konbini"];
 
 function env(name, alt) {
   return process.env[name] || process.env[alt] || "";
@@ -44,13 +45,16 @@ function sanitize(e) {
   if (thumb.length > 150000) thumb = "";
   if (!id || !Number.isFinite(seed)) return null;
   const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro"
-             : e.mode === "matisse" ? "matisse" : "pollock";
+             : e.mode === "matisse" ? "matisse"
+             : e.mode === "keita" ? "keita" : "pollock";
   if (mode === "scarf") {
     if (!SCARF_PALETTES.includes(e.palette)) return null;
   } else if (mode === "miro") {
     if (!FORMATS.includes(e.format) || !MIRO_PALETTES.includes(e.palette)) return null;
   } else if (mode === "matisse") {
     if (!FORMATS.includes(e.format) || !SUBJECTS.includes(e.subject)) return null;
+  } else if (mode === "keita") {
+    if (!FORMATS.includes(e.format) || !KEITA_SCENES.includes(e.subject)) return null;
   } else {
     if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
   }
@@ -60,7 +64,7 @@ function sanitize(e) {
     dyn: Number.isFinite(dyn) ? Math.min(1, Math.max(0, dyn)) : 0.6,
     title, thumb
   };
-  if (mode !== "matisse") out.palette = e.palette;
+  if (mode !== "matisse" && mode !== "keita") out.palette = e.palette;
   if (mode === "scarf") {
     out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
     if (e.design && typeof e.design === "object") {
@@ -109,6 +113,7 @@ function sanitize(e) {
       if (dOut.strokes || dOut.composition || dOut.accents || dOut.satellite) out.design = dOut;
     }
   }
+  if (mode === "keita") out.subject = e.subject;
   if (mode === "matisse") {
     out.subject = e.subject;
     if (e.design && typeof e.design === "object") {
