@@ -126,6 +126,19 @@ lines that wander between forms — in oil, on washed and scumbled grounds
 with dry-brush streaks and occasional spatter, lit by the same relief
 engine as the pollock wing. All canvas formats apply.
 
+The wing now paints in **mixed media**, as Miró did: each element takes
+up a tool — wet ink with pressure swells, a loaded start and a brush
+that runs dry; **wax crayon** laid grainy with the paper breathing
+through; dry-brush streaks — plus crayon scribble halos, fingertip dab
+clusters with hollow rims, ink splats, rake-of-strokes comb marks, and
+blobs that may arrive scrubbed in crayon rather than filled flat.
+Compositions were refocused after the late works on paper: far fewer,
+far larger elements — the *personnage* mode now paints one commanding
+protagonist (a caged grid torso, a dark head-blob riding its shoulder,
+wide-stance legs, one raised accent disc, a crayon halo drifting above)
+with only a handful of companions, and colour stays restrained around
+the figures.
+
 - **Palettes** — Rêve (ivory, full primaries), Constellation (mottled
   parchment, dense star fields), Bleu (cobalt monochrome, sparse
   wanderers), Nocturne (umber night, bright forms, pale line) and Terre
@@ -174,7 +187,12 @@ satin-stitched centre rosette.
   clustered flower-burst colour stories with stray blooms, small far-off
   birds — balanced asymmetry, massed forms, no geometric scaffold. The
   medallion mode was decluttered in the same spirit: fewer simultaneous
-  band treatments, no connector arcs, a sparser field with leaf sprigs.
+  band treatments, no connector arcs, a sparser field with leaf sprigs —
+  and the fractal flora now grows through it too: family-tuned fronds
+  (feathery kelp for Chaîne, rounded laurel for Cavalcade, garden fern
+  for Jardin) spill from the four field corners with accent blooms, a
+  stitched leaf wreath hugs the medallion, and sprigs interleave the
+  gold pips along the border row.
 - **Embroidery, not flat print** — every mark is laid as thread: stem
   stitches, satin-stitch petals with darker couched outlines, layered
   double rosettes, french knots — each raising the height field so the
@@ -199,7 +217,7 @@ of a great maison.
 **The AI designer** — with the AI toggle on, each fresh carré begins
 with Claude as head designer: it chooses the composition (garden or
 medallion), sets the density, places the colour-accent regions for a
-garden, or composes a figurative centrepiece as a constrained stroke
+garden, or composes a richly worked figurative centrepiece (45–100 strokes invited, 4,800-token budget) plus an optional **satellite group** — a second small scene repeated four-fold around the field, the way the great equestrian carrés surround their centre — as a constrained stroke
 drawing (polylines, arcs, satin patches, french knots in the colourway's
 threads — nautical subjects for Chaîne, equestrian for Cavalcade,
 botanical for Jardin, with optional mirror symmetry), and the atelier

@@ -74,14 +74,14 @@ function sanitize(e) {
           .map(x => ({ x: cl(x.x, .05, .95), y: cl(x.y, .05, .95), r: cl(x.r, .05, .25) }));
         if (acc.length) dOut.accents = acc;
       }
+      const readGroup = (arr, cap) => {
       const strokes = [];
-      if (Array.isArray(e.design.strokes)) {
-      for (const st of e.design.strokes.slice(0, 80)) {
+      for (const st of (Array.isArray(arr) ? arr : []).slice(0, cap)) {
         if (!st || typeof st !== "object") continue;
         const c = Math.min(3, Math.max(0, st.c | 0));
         const w = cl(st.w, 1, 3);
         if (st.t === "line" && Array.isArray(st.pts)) {
-          const pts = st.pts.slice(0, 24)
+          const pts = st.pts.slice(0, 32)
             .filter(p => Array.isArray(p) && p.length >= 2)
             .map(p => [cl(p[0], -1, 1), cl(p[1], -1, 1)]);
           if (pts.length > 1) strokes.push({ t: "line", c, w, pts });
@@ -96,9 +96,13 @@ function sanitize(e) {
           strokes.push({ t: "knot", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .08) });
         }
       }
-      }
+      return strokes;
+      };
+      const strokes = readGroup(e.design.strokes, 140);
+      const sat = readGroup(e.design.satellite, 36);
       if (strokes.length) dOut.strokes = strokes;
-      if (dOut.strokes || dOut.composition || dOut.accents) out.design = dOut;
+      if (sat.length) dOut.satellite = sat;
+      if (dOut.strokes || dOut.composition || dOut.accents || dOut.satellite) out.design = dOut;
     }
   }
   if (typeof e.story === "string" && e.story.trim()) {

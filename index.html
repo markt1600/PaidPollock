@@ -163,19 +163,52 @@ main::after{ /* faint floor line */
   line-height:0;
 }
 .framewrap::before{ /* a warm halo that breathes while Claude is thinking */
-  content:"";position:absolute;inset:-9px;z-index:0;pointer-events:none;
-  border-radius:3px;
-  box-shadow:0 0 0 2px rgba(216,166,84,.55), 0 0 36px 8px rgba(216,166,84,.42);
+  content:"";position:absolute;inset:-11px;z-index:0;pointer-events:none;
+  border-radius:4px;
+  box-shadow:0 0 0 3px rgba(222,174,92,.7), 0 0 52px 14px rgba(222,174,92,.5),
+             0 0 110px 30px rgba(222,174,92,.22);
   opacity:0;
-  transition:opacity .6s ease;
+  transition:opacity .5s ease;
 }
 .framewrap.ai-thinking::before{
   opacity:1;
-  animation:aiPulse 2.2s ease-in-out infinite;
+  animation:aiPulse 2s ease-in-out infinite;
 }
-@keyframes aiPulse{0%,100%{opacity:.22}50%{opacity:.9}}
+@keyframes aiPulse{0%,100%{opacity:.4}50%{opacity:1}}
+@property --aiA{syntax:'<angle>';inherits:false;initial-value:0deg;}
+.ai-sparkle{ /* a glint orbiting the frame, with twinkles at its corners */
+  position:absolute;inset:-12px;border-radius:5px;pointer-events:none;
+  opacity:0;transition:opacity .5s ease;z-index:6;
+}
+.framewrap.ai-thinking .ai-sparkle{opacity:1}
+.ai-sparkle::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:3px;
+  background:conic-gradient(from var(--aiA),
+    transparent 0 8%, rgba(255,236,180,.95) 12%, rgba(255,214,130,.5) 15%, transparent 20%,
+    transparent 46%, rgba(255,236,180,.65) 51%, transparent 57%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+          mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask-composite:exclude;
+  animation:aiOrbit 3s linear infinite;
+}
+@keyframes aiOrbit{to{--aiA:360deg}}
+.ai-sparkle::after{
+  content:"";position:absolute;inset:-4px;pointer-events:none;
+  background:
+    radial-gradient(circle 5px at 0% 0%, rgba(255,240,200,.95), transparent 70%),
+    radial-gradient(circle 4px at 100% 0%, rgba(255,240,200,.9), transparent 70%),
+    radial-gradient(circle 5px at 100% 100%, rgba(255,240,200,.95), transparent 70%),
+    radial-gradient(circle 4px at 0% 100%, rgba(255,240,200,.9), transparent 70%),
+    radial-gradient(circle 3px at 50% 0%, rgba(255,240,200,.8), transparent 70%),
+    radial-gradient(circle 3px at 50% 100%, rgba(255,240,200,.8), transparent 70%);
+  animation:aiTwinkle 1.6s ease-in-out infinite;
+}
+@keyframes aiTwinkle{0%,100%{opacity:.2}50%{opacity:1}}
 @media (prefers-reduced-motion: reduce){
-  .framewrap.ai-thinking::before{animation:none;opacity:.55}
+  .framewrap.ai-thinking::before{animation:none;opacity:.75}
+  .ai-sparkle::before{animation:none}
+  .ai-sparkle::after{animation:none;opacity:.6}
 }
 .framewrap::after{ /* the room's light falls from above */
   content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
@@ -340,6 +373,7 @@ canvas#view{display:block;background:#e7e0cd}
   <div class="hang">
     <div class="framewrap f-none" id="framewrap">
       <div class="liner"><canvas id="view"></canvas></div>
+      <div class="ai-sparkle" aria-hidden="true"></div>
     </div>
     <div class="placard" id="placard">
       <input id="pTitle" value="No. 17, 2026" maxlength="48" spellcheck="false"
@@ -1742,8 +1776,110 @@ const MIRO_PALETTES={
     swatches:["#a8602f","#1a1410","#e0ae24","#f0e7d2"]}
 };
 
+/* ---- mixed media: Miró worked in ink, gouache, crayon, fingertips ---- */
+let MIRO_MED="ink";   /* the tool currently in hand */
+
+/* wax crayon / charcoal: dry, grainy, the paper breathes through */
+function crayon(ctx,pts,w0){
+  const ga=ctx.globalAlpha;
+  let total=0;
+  for(let i=1;i<pts.length;i++)total+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
+  if(total<1)return;
+  for(let i=1;i<pts.length;i++){
+    const [x1,y1]=pts[i-1],[x2,y2]=pts[i];
+    const d=Math.hypot(x2-x1,y2-y1), n=Math.max(1,Math.round(d/(w0*.3)));
+    for(let j2=0;j2<=n;j2++){
+      const t=j2/n, x=x1+(x2-x1)*t, y=y1+(y2-y1)*t;
+      const k=2+((rnd()*3)|0);
+      for(let g=0;g<k;g++){
+        ctx.globalAlpha=ga*R(.16,.5);
+        stamp(ctx,x+R(-.55,.55)*w0,y+R(-.55,.55)*w0,w0*R(.1,.28));
+      }
+      if((j2&3)===0)hstamp(x,y,w0*.5,.025);
+    }
+  }
+  ctx.globalAlpha=ga;
+}
+/* a brush running dry: broken parallel streaks */
+function dryBrush(ctx,pts,w0){
+  const ga=ctx.globalAlpha;
+  for(let strand=0;strand<4;strand++){
+    const off=R(-.38,.38)*w0;
+    for(let i=1;i<pts.length;i++){
+      const [x1,y1]=pts[i-1],[x2,y2]=pts[i];
+      const d=Math.hypot(x2-x1,y2-y1), n=Math.max(1,Math.round(d/(w0*.25)));
+      const nx=-(y2-y1)/d, ny=(x2-x1)/d;
+      for(let j2=0;j2<=n;j2++){
+        if(rnd()<.32)continue;
+        const t=j2/n;
+        ctx.globalAlpha=ga*R(.3,.65);
+        stamp(ctx,x1+(x2-x1)*t+nx*off,y1+(y2-y1)*t+ny*off,w0*R(.1,.2));
+      }
+    }
+  }
+  ctx.globalAlpha=ga;
+}
+/* the signature crayon scribble: an elliptical spiral, wobbling */
+function crayonScribble(ctx,cx,cy,rx,ry,turns,u){
+  const rot=R(-.35,.35),cr=Math.cos(rot),sr=Math.sin(rot);
+  const n=Math.round(turns*30), pts=[];
+  for(let i=0;i<=n;i++){
+    const a=i/30*2*Math.PI;
+    const shrink=1-.5*(i/n)+R(-.05,.05);
+    const px=Math.cos(a)*rx*shrink, py=Math.sin(a)*ry*shrink;
+    pts.push([cx+px*cr-py*sr,cy+px*sr+py*cr]);
+  }
+  crayon(ctx,pts,3.8*u);
+}
+/* fingertip dabs: a dark heart ringed by hollow prints */
+function dabCluster(ctx,cx,cy,r,u){
+  const ga=ctx.globalAlpha;
+  for(let i=0;i<4+((rnd()*3)|0);i++){
+    ctx.globalAlpha=ga*R(.75,.95);
+    stamp(ctx,cx+R(-.28,.28)*r,cy+R(-.28,.28)*r,r*R(.16,.3));
+    hstamp(cx,cy,r*.3,.08);
+  }
+  const n=10+((rnd()*8)|0);
+  for(let i=0;i<n;i++){
+    const a=R(0,6.28), rr=r*R(.5,1.05);
+    const dx=cx+Math.cos(a)*rr, dy=cy+Math.sin(a)*rr;
+    const dr=r*R(.1,.17);
+    ctx.globalAlpha=ga*R(.45,.8);
+    const m=5+((rnd()*4)|0);
+    for(let k=0;k<m;k++){
+      const aa=k*2*Math.PI/m+R(-.3,.3);
+      stamp(ctx,dx+Math.cos(aa)*dr,dy+Math.sin(aa)*dr,dr*R(.3,.5));
+    }
+    if(rnd()<.4)stamp(ctx,dx,dy,dr*R(.2,.35));
+  }
+  ctx.globalAlpha=ga;
+}
+/* an ink splat with spidery droplets */
+function msplat(ctx,x,y,r,u){
+  for(let i=0;i<10;i++)stamp(ctx,x+R(-.3,.3)*r,y+R(-.3,.3)*r,r*R(.2,.42));
+  hstamp(x,y,r*.7,.1);
+  const n=4+((rnd()*5)|0);
+  for(let i=0;i<n;i++){
+    const a=R(0,6.28), d=r*R(1,2.6);
+    stamp(ctx,x+Math.cos(a)*d,y+Math.sin(a)*d,Math.max(.8*u,r*R(.05,.14)));
+  }
+}
+/* a comb / rake mark */
+function mComb(ctx,x,y,s,ang,w){
+  const ca=Math.cos(ang),sa=Math.sin(ang);
+  obrush(ctx,[[x-ca*s,y-sa*s],[x+ca*s,y+sa*s]],w,true);
+  const teeth=3+((rnd()*3)|0);
+  for(let i=0;i<teeth;i++){
+    const t=-.8+1.6*i/(teeth-1);
+    const tx=x+ca*t*s, ty=y+sa*t*s;
+    obrush(ctx,[[tx,ty],[tx-sa*s*R(.4,.6),ty+ca*s*R(.4,.6)]],w*.9,true);
+  }
+}
+
 /* ---- oil-paint primitives: matte, brushed, faintly ridged ---- */
 function obrush(ctx,pts,w0,taper){
+  if(MIRO_MED==="crayon")return crayon(ctx,pts,w0*1.3);
+  if(MIRO_MED==="dry")return dryBrush(ctx,pts,w0*1.2);
   /* a brush line through the points: width breathes, ends taper */
   let total=0;
   for(let i=1;i<pts.length;i++)total+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]);
@@ -1756,19 +1892,22 @@ function obrush(ctx,pts,w0,taper){
     for(let j2=0;j2<=n;j2++){
       const t=j2/n, x=x1+(x2-x1)*t+R(-.1,.1)*w0, y=y1+(y2-y1)*t+R(-.1,.1)*w0;
       const along=(run+d*t)/total;
-      let w=w0*(1+.22*Math.sin(along*9.4+ph));
+      let w=w0*(1+.35*Math.sin(along*7.2+ph));
       if(taper){
-        if(along<.12)w*=.35+.65*(along/.12);
-        if(along>.88)w*=.35+.65*((1-along)/.12);
+        if(along<.1)w*=.45+.9*(along/.1);   /* the loaded start swells */
+        if(along>.86)w*=.3+.7*((1-along)/.14);
       }
+      const ga0=ctx.globalAlpha;
+      if(taper&&along>.88)ctx.globalAlpha=ga0*R(.45,.8); /* the brush runs dry */
       stamp(ctx,x,y,w*.5);
+      ctx.globalAlpha=ga0;
       if((j2&1)===0)hstamp(x,y,w*.8,.09);
     }
     run+=d;
   }
 }
 /* a biomorphic blob: radial harmonics, matte fill, painted body */
-function oblob(ctx,cx,cy,r,squash,ang){
+function oblob(ctx,cx,cy,r,squash,ang,scrub){
   const a1=R(.08,.3),a2=R(.05,.22),a3=R(.02,.14);
   const p1=R(0,6.28),p2=R(0,6.28),p3=R(0,6.28);
   const sq=squash||R(.6,1);
@@ -1779,6 +1918,13 @@ function oblob(ctx,cx,cy,r,squash,ang){
     const rr=r*(1+a1*Math.sin(t+p1)+a2*Math.sin(2*t+p2)+a3*Math.sin(3*t+p3));
     const px=Math.cos(t)*rr, py=Math.sin(t)*rr*sq;
     pts.push([cx+px*ca-py*sa, cy+px*sa+py*ca]);
+  }
+  if(scrub){ /* a scrubbed crayon mass, paper breathing through */
+    for(let k=5;k>=1;k--){
+      const sc=k/5;
+      crayon(ctx,pts.map(p=>[cx+(p[0]-cx)*sc,cy+(p[1]-cy)*sc]),r*.16);
+    }
+    return pts;
   }
   ctx.beginPath();
   ctx.moveTo(pts[0][0],pts[0][1]);
@@ -1890,6 +2036,69 @@ function odotsTrail(ctx,cx,cy,r,n,ang){
     odisc(ctx,cx+ca*t*2*r+R(-.05,.05)*r,cy+sa*t*2*r+R(-.05,.05)*r,sz);
   }
 }
+/* a personnage in the manner of the late works: a great caged torso,
+   wide-stance legs, a crayon halo, one raised accent */
+function ofigure2(ctx,cx,cy,sc,pal,u){
+  const C2=pal.colors;
+  const lineC=pal.line==="pale"?C2.white:C2.black;
+  const accent=[C2.red,"#5e1f1a",C2.blue][(rnd()*3)|0];
+  ctx.fillStyle=lineC;
+  /* torso: a leaning oval cage */
+  const tilt=R(-.18,.18);
+  const rx=sc*.34, ry=sc*.46;
+  const per=[];
+  for(let i=0;i<=40;i++){
+    const a=i/40*2*Math.PI;
+    const px=Math.cos(a)*rx*R(.96,1.04), py=Math.sin(a)*ry*R(.96,1.04);
+    per.push([cx+px*Math.cos(tilt)-py*Math.sin(tilt),
+              cy+px*Math.sin(tilt)+py*Math.cos(tilt)]);
+  }
+  MIRO_MED="ink";
+  obrush(ctx,per,4.2*u,false);
+  const inner=rnd();
+  if(inner<.55){ /* the grid: bars across the cage */
+    const nb=3+((rnd()*3)|0);
+    for(let i=0;i<nb;i++){
+      const t=-.6+1.2*i/(nb-1);
+      obrush(ctx,[[cx-rx*.85,cy+ry*t+R(-.04,.04)*sc],
+                  [cx+rx*.85,cy+ry*t*R(.85,1.15)]],3.6*u,true);
+    }
+    const nv=2+((rnd()*2)|0);
+    for(let i=0;i<nv;i++){
+      const t=-.5+1*i/Math.max(1,nv-1);
+      obrush(ctx,[[cx+rx*t,cy-ry*.8],[cx+rx*t*R(.8,1.2),cy+ry*.8]],3.2*u,true);
+    }
+  }else if(inner<.8){ /* a scrubbed dark mass inside */
+    oblob(ctx,cx+R(-.1,.1)*rx,cy+R(-.1,.1)*ry,sc*.26,R(.7,1),tilt,true);
+  }
+  /* the dark head-blob riding the cage's shoulder */
+  oblob(ctx,cx+R(-.2,.2)*rx,cy-ry*R(.55,.8),sc*R(.13,.18),R(.8,1),R(0,3));
+  /* legs: the wide stance */
+  const hipY=cy+ry*.7;
+  for(const side of [-1,1]){
+    const fx=cx+side*sc*R(.3,.45), fy=cy+ry*1.3+R(0,.1)*sc;
+    obrush(ctx,[[cx+side*rx*.2,hipY],[cx+side*sc*.18,hipY+ry*.4],[fx,fy]],7*u,true);
+    obrush(ctx,[[fx,fy],[fx+side*sc*.13,fy+R(-.02,.02)*sc]],6*u,true); /* the foot */
+  }
+  /* arms: one raised holding the accent, one hooked */
+  const armY=cy-ry*R(.1,.3);
+  const upX=cx-rx*1.05, upTip=[upX-sc*R(.12,.2),armY-sc*R(.3,.45)];
+  obrush(ctx,[[cx-rx*.7,armY],[upX,armY-sc*.1],upTip],3.6*u,true);
+  ctx.fillStyle=accent;
+  oblob(ctx,upTip[0],upTip[1]-sc*.06,sc*R(.07,.1),R(.6,.85),R(0,3));
+  obrush(ctx,[[upTip[0],upTip[1]],[upTip[0],upTip[1]-sc*.04]],3*u,false);
+  ctx.fillStyle=lineC;
+  MIRO_MED=rnd()<.5?"crayon":"ink";
+  obrush(ctx,[[cx+rx*.9,armY],[cx+rx*1.3,armY-sc*.12],[cx+rx*1.34,armY+sc*.14],[cx+rx*1.1,armY+sc*.18]],3.4*u,true);
+  MIRO_MED="ink";
+  /* the crayon halo drifting above */
+  if(rnd()<.78)
+    crayonScribble(ctx,cx+R(-.6,-.1)*sc,cy-ry*1.25+R(-.1,.1)*sc,
+                   sc*R(.22,.3),sc*R(.12,.18),R(2.2,3.6),u);
+  /* an ink splat and droplets where the brush paused */
+  if(rnd()<.6)msplat(ctx,cx+R(-.3,.3)*sc,cy+R(0,.4)*sc,sc*R(.025,.045),u);
+}
+
 /* a figure in Miró's shorthand: head, eye, body, limbs, whiskers */
 function ofigure(ctx,cx,cy,sc,pal,u){
   const C2=pal.colors, picks=pal.marks;
@@ -1972,15 +2181,15 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
   /* the composition rolls its own dream */
   const V={
     comp:palKey==="bleu"?(rnd()<.8?"sparse":"constellation")
-         :palKey==="constellation"?(rnd()<.7?"constellation":"personnages")
-         :(r=>r<.45?"personnages":r<.75?"constellation":"sparse")(rnd()),
+         :palKey==="constellation"?(rnd()<.65?"constellation":"personnages")
+         :(r=>r<.55?"personnages":r<.78?"sparse":"constellation")(rnd()),
     horizon:rnd()<.16,
     speckle:rnd()<.5
   };
   const dense=V.comp==="constellation";
-  const counts=dense?{anchors:1,mid:14+((rnd()*6)|0),small:26+((rnd()*14)|0),conn:14+((rnd()*8)|0)}
-    :V.comp==="personnages"?{anchors:2+((rnd()*2)|0),mid:4+((rnd()*4)|0),small:8+((rnd()*7)|0),conn:2+((rnd()*4)|0)}
-    :{anchors:1+((rnd()*2)|0),mid:2+((rnd()*3)|0),small:4+((rnd()*4)|0),conn:1+((rnd()*2)|0)};
+  const counts=dense?{anchors:1,mid:11+((rnd()*5)|0),small:18+((rnd()*10)|0),conn:9+((rnd()*6)|0)}
+    :V.comp==="personnages"?{anchors:1,mid:2+((rnd()*3)|0),small:3+((rnd()*3)|0),conn:1+((rnd()*2)|0)}
+    :{anchors:1,mid:1+((rnd()*3)|0),small:2+((rnd()*4)|0),conn:(rnd()*2)|0};
 
   const finishUnits=Math.ceil(hm.height/64)+3*(Math.ceil(hm.height/128)+Math.ceil(hm.width/128))+2;
   const groundUnits=8;
@@ -2047,17 +2256,27 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
     }
     return null;
   }
-  const pickC=()=>C2[pal.marks[(rnd()*pal.marks.length)|0]];
+  const pickC=()=>(V.comp==="personnages"&&rnd()<.5)
+    ?lineC:C2[pal.marks[(rnd()*pal.marks.length)|0]];
 
   /* anchors: the protagonists */
   const base=Math.min(W,H);
   for(let i=0;i<counts.anchors;i++){
-    const r=base*(V.comp==="personnages"?R(.15,.22):R(.1,.17));
-    const p=V.comp==="personnages"?place(r*.75,r*1.05,r*.75):place(r);
+    const r=V.comp==="personnages"
+      ?Math.min(base*R(.27,.36),H*.265,W*.32)
+      :base*R(.14,.22);
+    const p=V.comp==="personnages"
+      ?place(r*.6,r*1.6,r*1.45)
+      :place(r);
     if(!p)continue;
-    statusCb(0,0,{c:lineC,miro:"a protagonist"});
+    statusCb(0,0,{c:lineC,miro:"the protagonist"});
     if(V.comp==="personnages"){
-      ofigure(hctx,p.x,p.y,r,pal,u);
+      ofigure2(hctx,p.x,p.y,r,pal,u);
+      /* sometimes a small companion stands aside */
+      if(rnd()<.3){
+        const p2=place(r*.32,r*.5,r*.45);
+        if(p2)ofigure(hctx,p2.x,p2.y,r*.4,pal,u);
+      }
     }else{
       const roll=rnd();
       hctx.fillStyle=pickC();
@@ -2078,13 +2297,14 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
     yield;
   }
   /* mid-weight forms */
-  const midKinds=["disc","halfdisc","blob","star","moon","eye","ladder","bird","flag"];
+  const midKinds=["disc","halfdisc","blob","star","moon","eye","ladder","bird","flag","dabs","comb","scribble"];
   for(let i=0;i<counts.mid;i++){
-    const r=base*R(.035,.075);
+    const r=base*(V.comp==="constellation"?R(.035,.075):R(.06,.12));
+    MIRO_MED=(q=>q<.55?"ink":q<.85?"crayon":"dry")(rnd());
     const p=place(r);if(!p)continue;
     const kind=midKinds[(rnd()*midKinds.length)|0];
     const c=pickC();
-    statusCb(0,0,{c,miro:({disc:"a sun",halfdisc:"a divided disc",blob:"a wandering form",star:"a star",moon:"a crescent",eye:"an eye",ladder:"the ladder of escape",bird:"a bird",flag:"a pennant"})[kind]});
+    statusCb(0,0,{c,miro:({disc:"a sun",halfdisc:"a divided disc",blob:"a wandering form",star:"a star",moon:"a crescent",eye:"an eye",ladder:"the ladder of escape",bird:"a bird",flag:"a pennant",dabs:"fingertip dabs",comb:"a rake of strokes",scribble:"a crayon scribble"})[kind]||"a form"});
     hctx.fillStyle=c;
     if(kind==="disc"){
       odisc(hctx,p.x,p.y,r*.8);
@@ -2097,7 +2317,7 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
       hctx.fillStyle=lineC;oring(hctx,p.x,p.y,r*.85,2.2*u);
       for(let k=0;k<8;k++){const a=k*.785;hstamp(p.x+Math.cos(a)*r*.7,p.y+Math.sin(a)*r*.7,r*.2,.1);}
     }else if(kind==="blob"){
-      oblob(hctx,p.x,p.y,r*.8,R(.55,1),R(0,3.14));
+      oblob(hctx,p.x,p.y,r*.8,R(.55,1),R(0,3.14),rnd()<.3);
     }else if(kind==="star"){
       hctx.fillStyle=rnd()<.7?lineC:c;
       ostar(hctx,p.x,p.y,r,u);
@@ -2112,6 +2332,15 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
     }else if(kind==="bird"){
       hctx.fillStyle=lineC;
       obird(hctx,p.x,p.y,r,u);
+    }else if(kind==="dabs"){
+      hctx.fillStyle=lineC;
+      dabCluster(hctx,p.x,p.y,r,u);
+    }else if(kind==="comb"){
+      hctx.fillStyle=lineC;
+      mComb(hctx,p.x,p.y,r,R(-.4,.4),3*u);
+    }else if(kind==="scribble"){
+      hctx.fillStyle=lineC;
+      crayonScribble(hctx,p.x,p.y,r*1.2,r*R(.5,.8),R(2,3.5),u);
     }else{
       hctx.fillStyle=lineC;
       obrush(hctx,[[p.x,p.y+r],[p.x,p.y-r]],2.4*u,false);
@@ -2123,6 +2352,7 @@ function* miroPhase(seed,fmtKey,palKey,statusCb,prog){
       hctx.closePath();hctx.fill();
       for(let k=0;k<4;k++)hstamp(p.x+R(0,.8)*r,p.y-r*R(.4,.9),r*.18,.08);
     }
+    MIRO_MED="ink";
     prog.done++;
     if(i%2===0)yield;
   }
@@ -2310,6 +2540,42 @@ jardin:[
   {t:"knot",c:0,x:.3,y:-.26,r:.02},
   {t:"knot",c:0,x:-.45,y:-.32,r:.02}]}
 ]};
+
+/* each family grows its own leaf */
+const FAM_FROND={
+  chaine:{leaf:.09,leafW:.2,gap:.038},      /* feathery kelp */
+  cavalcade:{leaf:.17,leafW:.55,gap:.075},  /* rounded laurel */
+  jardin:{leaf:.14,leafW:.34,gap:.05}       /* garden fern */
+};
+/* paint a designed stroke group at any position and scale */
+function drawDesignStrokes(ctx,strokes,cx,cy,RAD,THREADS,wTh,mirror,u){
+  const pass=()=>{
+    for(const st of strokes){
+      ctx.fillStyle=THREADS[st.c]||THREADS[1];
+      const w=wTh*(0.55+0.3*(st.w||1));
+      if(st.t==="line"&&st.pts&&st.pts.length>1){
+        for(let j=1;j<st.pts.length;j++)
+          eline(ctx,cx+st.pts[j-1][0]*RAD,cy+st.pts[j-1][1]*RAD,
+                    cx+st.pts[j][0]*RAD,cy+st.pts[j][1]*RAD,w,.06);
+      }else if(st.t==="arc"){
+        earc(ctx,cx+st.x*RAD,cy+st.y*RAD,st.rx*RAD,st.ry*RAD,
+             st.a0*Math.PI/180,st.a1*Math.PI/180,(st.rot||0)*Math.PI/180,w,.06);
+      }else if(st.t==="satin"){
+        satinO(ctx,cx+st.x*RAD,cy+st.y*RAD,(st.ang||0)*Math.PI/180,
+               st.len*RAD,st.wid*RAD,w*.85);
+      }else if(st.t==="knot"){
+        knot(ctx,cx+st.x*RAD,cy+st.y*RAD,Math.max(wTh*.6,st.r*RAD));
+      }
+    }
+  };
+  pass();
+  if(mirror){
+    ctx.save();
+    ctx.translate(cx,cy);ctx.scale(-1,1);ctx.translate(-cx,-cy);
+    pass();
+    ctx.restore();
+  }
+}
 
 /* ---- the carré itself ---- */
 function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
@@ -2615,9 +2881,17 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
         if(motif==="chaine")mLink(hctx,x,yc,sz,wTh);
         else if(motif==="cavalcade")(i%2?mBit:mStirrup)(hctx,x,yc,sz*.9,wTh);
         else mLeafStem(hctx,x,yc,sz,0,wTh*.9,T2,gold);
-        if(i<n-1){ /* a gold pip between neighbours */
-          hctx.fillStyle=gold;
-          knot(hctx,x+(x1-x0)/(n-1)/2,yc,wTh*.8);
+        if(i<n-1){ /* a gold pip or a leaf sprig between neighbours */
+          const mxp=x+(x1-x0)/(n-1)/2;
+          if(i%2){
+            hctx.fillStyle=gold;
+            knot(hctx,mxp,yc,wTh*.8);
+          }else{
+            const ff={u,w:1.5*u,...(FAM_FROND[motif]||FAM_FROND.jardin)};
+            hctx.fillStyle=gold;
+            const g=frondGeom(mxp,yc+.012*S,-Math.PI/2,.022*S,ff,0);
+            frondPaint(hctx,g,ff,false);
+          }
           hctx.fillStyle=T2;
         }
         if((i&2)===0)yield;
@@ -2741,6 +3015,18 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   /* ---- the illustrated centrepiece, when a designer has drawn one ---- */
   const THREADS=[gold,T0,T1,T2];
+  /* the designer's satellite group, repeated four-fold in the pockets */
+  if(!GARDEN&&design&&design.satellite&&design.satellite.length)
+  J(T1,"satellite scenes",function*(){
+    withSym(hctx,4,cx2,cy2,()=>{
+      hctx.save();
+      hctx.translate(cx2,cy2);hctx.rotate(Math.PI/4);hctx.translate(-cx2,-cy2);
+      drawDesignStrokes(hctx,design.satellite,cx2,cy2-.415*S,.105*S,
+                        THREADS,wTh*.8,false,u);
+      hctx.restore();
+    });
+    yield;
+  });
   if(!GARDEN&&centre==="star")J(T0,"compass star",function*(){
     const MR=V.medR*S;
     for(let i=0;i<8;i++){
@@ -2759,36 +3045,9 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
   });
   if(!GARDEN&&design&&design.strokes&&design.strokes.length){
     J(gold,"illustrated centrepiece",function*(){
-      const RAD=V.medR*S*.95;
-      const draw=()=>{
-        let i=0;
-        for(const st of design.strokes){
-          hctx.fillStyle=THREADS[st.c]||T0;
-          const w=wTh*(0.55+0.3*(st.w||1));
-          if(st.t==="line"&&st.pts&&st.pts.length>1){
-            for(let j=1;j<st.pts.length;j++)
-              eline(hctx,cx2+st.pts[j-1][0]*RAD,cy2+st.pts[j-1][1]*RAD,
-                          cx2+st.pts[j][0]*RAD,cy2+st.pts[j][1]*RAD,w,.06);
-          }else if(st.t==="arc"){
-            earc(hctx,cx2+st.x*RAD,cy2+st.y*RAD,st.rx*RAD,st.ry*RAD,
-                 st.a0*Math.PI/180,st.a1*Math.PI/180,(st.rot||0)*Math.PI/180,w,.06);
-          }else if(st.t==="satin"){
-            satinO(hctx,cx2+st.x*RAD,cy2+st.y*RAD,(st.ang||0)*Math.PI/180,
-                   st.len*RAD,st.wid*RAD,w*.85);
-          }else if(st.t==="knot"){
-            knot(hctx,cx2+st.x*RAD,cy2+st.y*RAD,Math.max(wTh*.6,st.r*RAD));
-          }
-          i++;
-        }
-      };
-      draw();yield;
-      if(design.mirror){
-        hctx.save();
-        hctx.translate(cx2,cy2);hctx.scale(-1,1);hctx.translate(-cx2,-cy2);
-        draw();
-        hctx.restore();
-        yield;
-      }
+      drawDesignStrokes(hctx,design.strokes,cx2,cy2,V.medR*S*.95,
+                        THREADS,wTh,design.mirror,u);
+      yield;
     });
   }
   if(centre==="rosette")
@@ -2831,6 +3090,43 @@ function* scarfPhase(seed,palKey,motifKey,statusCb,prog,design){
     yield;
   });
   /* a fine inner ring of small ornaments just off the medallion */
+  /* fractal corner sprays: the family's leaf spills into the field */
+  if(!GARDEN&&!(design&&design.satellite&&design.satellite.length))
+  J(pal.flora[1],"corner sprays",function*(){
+    const ff={u,w:2*u,...(FAM_FROND[motif]||FAM_FROND.jardin)};
+    const F=pal.flora, dk=darkThread(F[3]);
+    const cc=b1+.055*S;
+    withSym(hctx,4,cx2,cy2,()=>{
+      const fronds=palmGeom(cc,cc,S*R(.13,.18),ff,3+((rnd()*2)|0),Math.PI/4,1.1);
+      hctx.fillStyle=dk;
+      for(const g of fronds)frondPaint(hctx,g,ff,true);
+      for(let i2=0;i2<fronds.length;i2++){
+        hctx.fillStyle=F[1+(i2%2)];
+        frondPaint(hctx,fronds[i2],ff,false);
+      }
+      if(rnd()<.6){
+        hctx.fillStyle=pal.accents[0];
+        flowerBurst(hctx,cc+S*R(.02,.05),cc+S*R(.02,.05),S*R(.015,.025),u,pal.accents[0],gold);
+      }
+    });
+    yield;
+  });
+  /* a stitched leaf wreath hugging the medallion */
+  if(!GARDEN)J(pal.flora[2],"medallion wreath",function*(){
+    const ff={u,w:1.8*u,...(FAM_FROND[motif]||FAM_FROND.jardin)};
+    const MR=V.medR*S;
+    const nW=18+((rnd()*8)|0);
+    for(let i=0;i<nW;i++){
+      const a=i*2*Math.PI/nW+R(-.04,.04);
+      const x=cx2+Math.cos(a)*(MR+.022*S), y=cy2+Math.sin(a)*(MR+.022*S);
+      hctx.fillStyle=pal.flora[1+(i%2)];
+      const g=frondGeom(x,y,a+Math.PI/2*(i%2?1:-1),S*R(.045,.07),
+        {...ff,curl:(i%2?1:-1)*R(.6,1)},0);
+      frondPaint(hctx,g,ff,false);
+      if(i%6===5)yield;
+    }
+    yield;
+  });
   if(!GARDEN)J(gold,"inner ring",function*(){
     withSym(hctx,16,cx2,cy2,(k)=>{
       const x=cx2, y=cy2-(V.medR+.045)*S, sz=.016*S;
@@ -3094,16 +3390,43 @@ function sanitizeDesign(v){
       .map(a=>({x:cl(a.x,.05,.95),y:cl(a.y,.05,.95),r:cl(a.r,.05,.25)}));
     if(acc.length)out.accents=acc;
   }
+  const readStrokes=(arr,cap)=>{
+    const strokes=[];
+    if(!Array.isArray(arr))return strokes;
+    for(const st of arr.slice(0,cap)){
+      if(!st||typeof st!=="object")continue;
+      const c=Math.min(3,Math.max(0,st.c|0));
+      const w=cl(st.w,1,3);
+      if(st.t==="line"&&Array.isArray(st.pts)){
+        const pts=st.pts.slice(0,32)
+          .filter(p=>Array.isArray(p)&&p.length>=2)
+          .map(p=>[cl(p[0],-1,1),cl(p[1],-1,1)]);
+        if(pts.length>1)strokes.push({t:"line",c,w,pts});
+      }else if(st.t==="arc"){
+        strokes.push({t:"arc",c,w,x:cl(st.x,-1,1),y:cl(st.y,-1,1),
+          rx:cl(st.rx,.01,1),ry:cl(st.ry,.01,1),
+          a0:cl(st.a0,-360,360),a1:cl(st.a1,-360,360),rot:cl(st.rot,-360,360)});
+      }else if(st.t==="satin"){
+        strokes.push({t:"satin",c,x:cl(st.x,-1,1),y:cl(st.y,-1,1),
+          ang:cl(st.ang,-360,360),len:cl(st.len,.02,.7),wid:cl(st.wid,.01,.4)});
+      }else if(st.t==="knot"){
+        strokes.push({t:"knot",c,x:cl(st.x,-1,1),y:cl(st.y,-1,1),r:cl(st.r,.005,.08)});
+      }
+    }
+    return strokes;
+  };
+  const sat=readStrokes(v.satellite,36);
+  if(sat.length)out.satellite=sat;
   if(!Array.isArray(v.strokes)){
-    return (out.composition||out.accents)?out:null;
+    return (out.composition||out.accents||out.satellite)?out:null;
   }
   const strokes=[];
-  for(const st of v.strokes.slice(0,80)){
+  for(const st of v.strokes.slice(0,140)){
     if(!st||typeof st!=="object")continue;
     const c=Math.min(3,Math.max(0,st.c|0));
     const w=cl(st.w,1,3);
     if(st.t==="line"&&Array.isArray(st.pts)){
-      const pts=st.pts.slice(0,24)
+      const pts=st.pts.slice(0,32)
         .filter(p=>Array.isArray(p)&&p.length>=2)
         .map(p=>[cl(p[0],-1,1),cl(p[1],-1,1)]);
       if(pts.length>1)strokes.push({t:"line",c,w,pts});
@@ -3119,7 +3442,7 @@ function sanitizeDesign(v){
     }
   }
   if(strokes.length)out.strokes=strokes;
-  if(!out.strokes&&!out.composition&&!out.accents)return null;
+  if(!out.strokes&&!out.composition&&!out.accents&&!out.satellite)return null;
   return out;
 }
 
@@ -3133,7 +3456,7 @@ async function askIllustrator(palKey,motifKey){
   const threads=[pal.gold,...pal.threads].map((c,i)=>i+"="+c).join(" ");
   const txt=`You are the head designer of a great French maison, composing a hand-embroidered silk carré. First choose the composition:
 "garden" — an all-over botanical jungle (layered fronds, palms, flower bursts), balanced but asymmetric, like the maison's famous garden scarves. You place the colour story: give "accents": up to 3 regions {"x","y","r"} in unit coordinates of the full square (0,0 top-left) where accent-coloured flower bursts cluster, and a "density" 0..1. No strokes needed.
-"medallion" — the classic architecture (border, rings, ornaments) with YOUR illustrated centrepiece as strokes.
+"medallion" — the classic architecture (border, rings, ornaments) with YOUR illustrated centrepiece as strokes, and optionally a "satellite": a second, smaller stroke group (its own [-1,1] space, up to 30 strokes) repeated four times around the field like companion scenes — the great equestrian carrés surround the centre this way.
 Reply with ONLY minified JSON, no prose, no fences:
 {"subject":"<=40 chars","composition":"garden"|"medallion","density":0-1,"accents":[...],"mirror":true|false,"strokes":[...]}
 For a medallion centrepiece, the stroke field is a circle: coordinates x,y in [-1,1], centre 0,0, keep within radius 0.92.`+` Theme: ${ILLUSTRATOR_THEMES[motifKey]||ILLUSTRATOR_THEMES.chaine}.`;
@@ -3144,8 +3467,8 @@ Stroke types:
 {"t":"arc","c":0-3,"w":1-3,"x":..,"y":..,"rx":..,"ry":..,"a0":deg,"a1":deg,"rot":deg} — a stitched elliptical arc.
 {"t":"satin","c":0-3,"x":..,"y":..,"ang":deg,"len":..,"wid":..} — a filled satin-stitch leaf/petal/patch from (x,y) along ang.
 {"t":"knot","c":0-3,"x":..,"y":..,"r":..} — a french knot (eyes, studs, buds).
-Use 15–40 well-chosen strokes — fewer, stronger strokes beat many weak ones, and the whole reply must stay compact. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
-  const out=await askClaude([{type:"text",text:txt+txt2}],3000);
+Be AMBITIOUS: use 45–100 strokes for the centrepiece — a richly worked single subject (a full-rigged ship, a horse with saddle and bridle detail, a dense bouquet) with interior detail, layered satin masses, decorative framing flourishes — plus up to 30 for the satellite group. Detail beats sparseness here; the maison's clients expect density. If the subject is left-right symmetric, set mirror:true and draw ONLY the right half (x>=0) plus the centreline. Compose with care: clean overlapping outlines, satin masses for body/foliage, knots for detail.`;
+  const out=await askClaude([{type:"text",text:txt+txt2}],4800);
   return sanitizeDesign(parseLooseJSON(out));
 }
 
