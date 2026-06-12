@@ -5764,7 +5764,7 @@ function sanitizeTouches(v,maxI){
 }
 async function askInkMaster(strokes){
   const list=strokes.map((L,i)=>i+": "+L).join("; ");
-  const txt=`You are the master's own hand, judging how a finished line drawing in the school of Matisse has been INKED (image attached). The geometry is fixed and may not change — you may only re-ink chosen strokes. The masks live by contrast: a contour loaded dark in one passage and starving dry in another, features pressed with conviction, nothing uniform. Judge the sheet: where is the hand too timid, too even, too heavy?
+  const txt=`You are the master's own hand, judging how a finished line drawing in the school of Matisse has been INKED (image attached). The geometry is fixed and may not change — you may only re-ink chosen strokes. These sheets live by contrast: a contour loaded dark in one passage and starving dry in another, a bloom's lobes pressed with conviction while a stem runs light, nothing uniform. Judge the sheet: where is the hand too timid, too even, too heavy?
 The strokes, by index: ${list}.
 Reply with ONLY minified JSON, no prose, no fences:
 {"note":"<=110 chars","touches":[{"i":<index>,"press":0.6-1.5,"dip":0.5-1.6,"drain":0.3-2.4}]}
@@ -6050,19 +6050,12 @@ function startGeneration(opts={}){
          the faces the geometry never leaves the house — Claude is the
          INK MASTER instead, re-inking chosen strokes (its touches are
          recorded for exact replay) */
-      let design=entry?(entry.design||null):null;
+      /* the geometry NEVER leaves the house — for faces and flowers
+         alike. Claude is only ever the INK MASTER: it may re-ink chosen
+         strokes (press, dip, drain) but never draw or move a line.
+         Designs recorded in old recipes still replay exactly. */
+      const design=entry?(entry.design||null):null;
       const subj=entry?entry.subject:state.subject;
-      if(!entry&&state.ai&&aiAvailable&&!reduce&&subj!=="visage"){
-        statusEl.innerHTML=`<span class="dot"></span>The draughtsman considers the sheet…`;
-        setAIThinking(true);
-        try{design=await askDraughtsman(state.subject);}
-        catch(e){
-          state.aiError=(e&&e.message)||"unreachable";
-          if(aiHardFail(e))aiAvailable=false;
-        }
-        finally{setAIThinking(false);}
-        if(myId!==genId)return;
-      }
       state.design=design;
       state.touches=entry?(entry.touches||null):null;
       const it=matisseGenerate(state.seed,state.format,subj,
@@ -6070,7 +6063,7 @@ function startGeneration(opts={}){
       it.next(); layoutView();
       const C=await runGen(it,!fast);
       if(myId!==genId)return;
-      if(!entry&&state.ai&&aiAvailable&&!reduce&&subj==="visage"
+      if(!entry&&state.ai&&aiAvailable&&!reduce
          &&C&&C.strokes&&C.strokes.length){
         statusEl.innerHTML=`<span class="dot"></span>The ink master studies the hand…`;
         setAIThinking(true);

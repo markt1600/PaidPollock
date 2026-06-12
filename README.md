@@ -193,21 +193,19 @@ at most one foxing fleck — none of the oil wing's debris or mottle.
 Framed drawings sit in a wide bevelled paper mat rather than a linen
 liner.
 
-**The AI draughtsman** — with the AI toggle on, Claude takes the pen
-itself for the flower studies: it composes the drawing as a constrained
-monochrome stroke design (long polylines, arcs, ink dots — outlines
-only, economy above all) and the atelier inks whatever it draws with
-the same pen model in place of the house study.
+**The AI ink master** — the geometry never leaves the house, for faces
+and flowers alike: the grammar is the signature, so the lines are always
+the engine's. With the AI on, Claude is only ever the ink master: the
+finished sheet goes to it with every stroke listed by index, and it may
+re-ink chosen strokes — the weight of the hand (press), how loaded the
+brush is when the stroke begins (dip), and how fast the line dries and
+fades along its length (drain) — up to eight touches, after which the
+sheet redraws with the new hand. It never draws or moves a line. These
+sheets live by contrast, and the ink master's job is to find it.
 
-**The AI ink master** — faces never leave the house: the mask grammar
-is the signature, so the geometry is always the engine's. Instead, with
-the AI on, Claude becomes the ink master: the finished face goes to it
-with every stroke listed by index, and it may re-ink chosen strokes —
-the weight of the hand (press), how loaded the brush is when the stroke
-begins (dip), and how fast the line dries and fades along its length
-(drain) — up to eight touches, after which the sheet redraws with the
-new hand. The masks live by contrast, and the ink master's job is to
-find it.
+(The earlier *draughtsman* role, where Claude drew the flower designs
+itself, is retired for new commissions — but designs recorded in old
+recipes still replay exactly, and the ledge still sanitises them.)
 
 Both the sanitised drawing and the ink master's touches are recorded in
 the recipe, so AI-touched sheets rehang pixel-identically with no API
