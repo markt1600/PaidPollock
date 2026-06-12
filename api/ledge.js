@@ -17,7 +17,7 @@ const PALETTES = ["convergence", "number31", "lavender", "bluepoles", "onyx"];
 const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
 const MOTIFS = ["chaine", "cavalcade", "jardin"];
 const MIRO_PALETTES = ["reve", "constellation", "bleu", "nocturne", "terre"];
-const SUBJECTS = ["visage", "figure", "fleurs", "nature"];
+const SUBJECTS = ["visage", "figure", "fleurs"];
 
 function env(name, alt) {
   return process.env[name] || process.env[alt] || "";

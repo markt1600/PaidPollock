@@ -168,21 +168,23 @@ warm wove paper. There is no palette — in its place a **Subject** chooser:
   in a single line, the eyes as short heavy dashes, a small wavy mouth.
   The brush is loaded at the crown and visibly starves on the way
   round.
-- **Figures** — reclining studies: a small profile head sunk into a
-  cushion, the knot of hair, and THE line — nape, shoulder, the long
-  back, the rise of the hip and the thigh in one continuous sweep.
-- **Flowers** — a vase on a table edge, stems fanning into anemones,
-  tulips, daisies and buds, and the signature broad lobed leaf with its
-  midrib (laid as a solid ink mass in the brush drawings).
-- **Still life** — a footed compotier with fruit looking over the rim, a
-  pitcher, a cloth whose pattern is a running vine, and sometimes a
-  branch leaning in from beyond the sheet.
+- **Figures** — studies in six or eight curves, after the late charcoal
+  nudes: an open loop for the bowed head with nothing inside it, one
+  great line for the back, big rounded masses for the folded legs — no
+  ground line, no hands, no face. The pose rolls seated (knees drawn
+  up, arms folded across them) or reclining.
+- **Flowers** — a vase floating free on the sheet (no table line), a
+  few stems fanning into anemones, tulips, daisies and buds, and the
+  signature broad lobed leaf with its midrib (laid as a solid ink mass
+  in the brush drawings).
 
 Every sheet rolls its **medium** from the seed (faces are always brush
-drawings, as the masks were) — pen and Indian ink,
+drawings, as the masks were; figures lean to the crayon of the charcoal
+studies) — pen and Indian ink,
 brush and Indian ink (heavier swells, a dry tail, solid leaves), or
-crayon (grainy, the paper breathing through) — and the placard always
-agrees with the drawing. The line model resamples each smoothed stroke
+crayon (grainy, the paper breathing through, its pressure fading along
+the stroke, the hand lifting to leave small gaps) — and the placard
+always agrees with the drawing. The line model resamples each smoothed stroke
 and lets the nib's pressure breathe along it; every stroke carries a
 dip of ink that drains with its physical length, so long lines start
 loaded, thin as they dry, and break into bristle streaks where the

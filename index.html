@@ -3524,16 +3524,14 @@ function* scarfGenerate(seed,palKey,motifKey,statusCb,prog={},design){
    ========================================================= */
 const MATISSE_SUBJECTS={
   visage:{name:"Faces",  note:"the late mask drawings"},
-  figure:{name:"Figures",note:"reclining studies"},
-  fleurs:{name:"Flowers",note:"vase, fronds & blooms"},
-  nature:{name:"Still life",note:"fruit on a patterned cloth"}
+  figure:{name:"Figures",note:"seated & reclining studies"},
+  fleurs:{name:"Flowers",note:"vase, fronds & blooms"}
 };
 const MATISSE_DIMS={square:"48 × 48 cm",classic:"56 × 42 cm",pano:"76 × 33 cm",portrait:"42 × 63 cm"};
 const MATISSE_TITLES={
   visage:["Grand visage","Visage","Tête de femme","Masque","Étude de visage"],
-  figure:["Nu allongé","Figure au repos","Étude de nu","Le repos","Nu dans l'atelier"],
-  fleurs:["Fleurs","Bouquet au vase","Anémones","Vase de fleurs","Feuillage"],
-  nature:["Nature morte","Le compotier","Fruits et pichet","Intérieur","Nature morte au feuillage"]
+  figure:["Nu allongé","Nu assis","Figure au repos","Étude de nu","Le repos"],
+  fleurs:["Fleurs","Bouquet au vase","Anémones","Vase de fleurs","Feuillage"]
 };
 const MATISSE_MEDIA={
   ink:   {medium:"Pen and Indian ink on wove paper"},
@@ -3543,9 +3541,10 @@ const MATISSE_MEDIA={
 /* the medium is rolled per sheet, deterministically from the seed, so the
    placard (set before the first stroke) and the drawing always agree */
 function matisseMediumFor(seed,subj){
-  if(subj==="visage")return "brush";   /* the masks are brush drawings */
+  if(subj==="visage")return "brush";   /* the masks are brush drawings  */
   const r=mulberry32((seed^0x51ed)>>>0)();
-  return r<.56?"ink":r<.82?"brush":"crayon";
+  if(subj==="figure")return r<.55?"crayon":r<.85?"ink":"brush";
+  return r<.6?"ink":r<.84?"brush":"crayon";
 }
 
 /* the tool in hand on the current sheet */
@@ -3583,12 +3582,30 @@ function mline(ctx,raw,w0,opt){
   const u=MAT_U;
   let pts=chaikin(raw.map(p=>[p[0],p[1]]),3);
   if(MAT_MED==="crayon"&&!opt.forcePen){
-    ctx.fillStyle=MAT_INK;
+    /* crayon in the manner of the late charcoal nudes: the pressure
+       fades along the stroke, the hand lifts and leaves small gaps,
+       long lines end as a whisper */
+    const rc=mResample(pts,Math.max(1.4*u,w0*.28));
+    if(!rc.total)return;
     const ga=ctx.globalAlpha;
-    ctx.globalAlpha=ga*.92;
-    crayon(ctx,pts,Math.max(2.6*MAT_U,w0*1.3));
-    ctx.globalAlpha=ga*.8;
-    crayon(ctx,pts,Math.max(1.8*MAT_U,w0*.85));   /* a second pass: the crayon presses */
+    ctx.fillStyle=MAT_INK;
+    const dip=R(.95,1.25);
+    const drain=clamp(rc.total/(950*u),.12,1.0)*R(.7,1.3);
+    const w1=Math.max(2.4*u,w0*1.15);
+    let gapUntil=-1;
+    for(let i=0;i<rc.pts.length;i++){
+      const a=rc.along[i];
+      const ld=Math.max(.12,dip-a*drain);
+      if(a>gapUntil&&rnd()<.018)gapUntil=a+R(.012,.05);   /* the hand lifts */
+      if(a<gapUntil)continue;
+      let press=Math.min(1,.5+ld*.7);
+      if(a<.04)press*=.6+.4*(a/.04);                      /* a soft start  */
+      const k=3+((rnd()*3)|0);
+      for(let g=0;g<k;g++){
+        ctx.globalAlpha=ga*R(.22,.62)*press;
+        stamp(ctx,rc.pts[i][0]+R(-.55,.55)*w1,rc.pts[i][1]+R(-.55,.55)*w1,w1*R(.12,.3));
+      }
+    }
     ctx.globalAlpha=ga;
     return;
   }
@@ -3768,81 +3785,94 @@ function planVisage(W,H){
   return plan;
 }
 
-/* ---- figure: the reclining study ---- */
+/* ---- figure: studies in six or eight curves ---- */
+/* The economy of the late charcoal nudes: an open loop for the bowed
+   head with nothing inside it, big rounded curves for the masses, no
+   ground line, no hands, no face. */
 function planFigure(W,H){
   const plan=[];
-  const dir=pick([1,-1]);                       /* which way she reclines */
-  const L=Math.min(W*.84,H*1.6);                /* the body's length      */
-  const yc=H*R(.62,.7);                         /* the chaise line        */
-  const x0=W*.5-dir*L*.52;                      /* the head end           */
+  if(rnd()<.5)return planFigureSeated(W,H,plan);
+
+  /* -- reclining: the body floats on the sheet -- */
+  const dir=pick([1,-1]);
+  const L=Math.min(W*.8,H*1.5);
+  const yc=H*R(.56,.64);
+  const x0=W*.5-dir*L*.5;
   const X=(t,y)=>[x0+dir*L*t,yc+L*y];
   const j=a=>a+R(-.008,.008);
-  const hr=L*.066;
-  const hc=X(.07,-.175);                        /* the head on the cushion */
-  const PHI=dir>0?Math.PI:0;                    /* which way the face looks */
-
-  /* the chaise, and the cushion the head sinks into */
-  plan.push({pts:[X(-.12,j(.012)),X(.5,j(.02)),X(1.12,j(.012))],
-    w:1.1,taper:"both",label:"the chaise"});
-  plan.push({pts:[X(-.01,j(-.012)),X(-.075,-.09),X(-.045,j(-.175)),X(.012,-.21)],
-    w:.9,taper:"both",label:"the cushion"});
-  if(rnd()<.6)plan.push({pts:[X(-.045,-.05),X(-.012,j(-.085)),X(.008,-.05)],
-    w:.8,taper:"both",label:"the cushion"});
-
-  /* the head: the skull's arc from forehead over the crown to the jaw */
-  plan.push({pts:mArcPts(hc[0],hc[1],hr,hr*1.06,PHI+.7,PHI+2*Math.PI-1.05,0,16),
-    w:.95,taper:"both",label:"the turn of the head"});
-  const F=(rx,ry)=>[hc[0]-dir*hr*rx,hc[1]+hr*ry];
-  plan.push({pts:[F(.78,-.62),F(.98,-.28),F(1.0,-.05),F(1.14,.12),F(.92,.24),
-    F(1.04,.38),F(.95,.5),F(.8,.62)],w:.85,taper:"both",label:"the profile"});
-  plan.push({pts:[F(.55,-.12),F(.3,-.16)],w:.7,taper:"both",label:"the eye"});
-  plan.push({pts:[F(.6,-.3),F(.32,-.36)],w:.7,taper:"end",label:"the brow"});
-  /* the hair: swept back over the crown to a low knot on the cushion */
-  for(let k=0;k<2;k++){
-    const rr=1.07+k*.12;
-    plan.push({pts:mArcPts(hc[0],hc[1],hr*rr,hr*rr,
-      PHI+Math.PI*R(.85,.95),PHI+Math.PI*R(1.32,1.42),0,10),
-      w:.9,taper:"end",label:"a sweep of hair"});
-  }
-  const bun=[hc[0]+dir*hr*1.28,hc[1]+hr*.72];
-  plan.push({pts:mArcPts(bun[0],bun[1],hr*.32,hr*.27,R(-.5,.1),R(5.4,6.3),R(0,6.28),12),
-    w:.85,taper:"both",label:"the knot of hair"});
-  plan.push({pts:mArcPts(bun[0],bun[1],hr*.16,hr*.13,R(.5,1.5),R(4.2,5.2),R(0,6.28),8),
-    w:.75,taper:"both",label:"the knot of hair"});
-
-  /* THE LINE: nape, shoulder, the long back, the rise of the hip, the
-     thigh to the knee — one continuous sweep */
+  const hr=L*.07;
+  const hc=X(.06,-.16);
+  const PHI=dir>0?Math.PI:0;
+  /* the head: one open loop, nothing inside it */
+  plan.push({pts:mArcPts(hc[0],hc[1],hr,hr*1.1,PHI+.55,PHI+2*Math.PI-.35,0,18),
+    w:1.0,taper:"both",label:"the head"});
+  /* THE line: nape, the long back, the hip's rise, the thigh, the shin
+     out to the pointed foot — all in one breath */
   plan.push({pts:[
-    [hc[0]+dir*hr*.5,hc[1]-hr*.95],
-    X(j(.125),-.205),X(j(.17),-.19),              /* nape into shoulder  */
-    X(j(.29),-.15),X(j(.38),-.13),                /* the long back       */
-    X(j(.48),-.165),X(j(.56),-.225),              /* the hip rises       */
-    X(j(.63),-.22),X(j(.74),-.155),X(j(.84),-.095)],/* the thigh descends */
-    w:1.15,taper:"end",label:"the sweep of the back"});
-  /* the shin runs out to the pointed foot */
-  plan.push({pts:[X(.84,-.095),X(j(.92),-.055),X(j(1.0),-.025),X(1.06,-.015)],
-    w:1.0,taper:"end",label:"the shin"});
-  /* the second leg lies just before it, one quiet echo */
-  plan.push({pts:[X(j(.53),-.125),X(j(.65),-.105),X(j(.75),-.06),X(j(.82),-.032)],
-    w:.95,taper:"both",label:"the second leg"});
-  plan.push({pts:[X(.82,-.032),X(j(.75),-.014),X(j(.68),-.008)],w:.85,taper:"end",label:"the folded calf"});
+    [hc[0]+dir*hr*.88,hc[1]-hr*.68],
+    X(j(.13),-.19),X(j(.18),-.175),
+    X(j(.3),-.14),X(j(.38),-.122),
+    X(j(.48),-.16),X(j(.56),-.21),
+    X(j(.64),-.2),X(j(.75),-.14),X(j(.84),-.085),
+    X(j(.93),-.045),X(j(1.02),-.018),X(1.07,-.012)],
+    w:1.2,taper:"end",label:"the sweep of the back"});
+  /* the front: throat, the breast's swell, the belly — one line */
+  plan.push({pts:[
+    [hc[0]-dir*hr*.5,hc[1]+hr*1.02],
+    X(j(.1),-.125),X(.13,-.102),
+    X(j(.17),-.118),X(j(.21),-.112),X(j(.24),-.08),
+    X(j(.31),-.05),X(j(.4),-.04)],
+    w:1.05,taper:"end",label:"the front of the body"});
+  /* the second leg: one quiet echo */
+  plan.push({pts:[X(j(.5),-.11),X(j(.66),-.09),X(j(.8),-.04),X(j(.88),-.012)],
+    w:1.0,taper:"both",label:"the second leg"});
+  /* the arm laid along the body */
+  plan.push({pts:[X(j(.17),-.15),X(j(.27),-.09),X(j(.38),-.062),X(j(.45),-.07)],
+    w:1.0,taper:"end",label:"the resting arm"});
+  return plan;
+}
 
-  /* the front contour: throat, the breast, the belly's soft fall */
-  plan.push({pts:[F(.6,.7),X(j(.1),-.14),X(.115,-.115)],w:.9,taper:"end",label:"the throat"});
-  plan.push({pts:[X(.115,-.115),X(j(.14),-.112),...mArcPts(...X(.19,-.112),L*.04,L*.046,
-    Math.PI*1.05,Math.PI*2.15,R(-.1,.1),8).slice(1)],
-    w:.9,taper:"end",label:"the breast"});
-  plan.push({pts:[X(j(.235),-.07),X(j(.3),-.05),X(j(.38),-.042)],
-    w:.95,taper:"both",label:"the belly"});
-
-  /* the near arm draped across the body, the hand at the hip */
-  plan.push({pts:[X(j(.175),-.165),X(j(.24),-.115),X(j(.3),-.082)],
-    w:.95,taper:"end",label:"the draped arm"});
-  plan.push({pts:[X(j(.3),-.082),X(j(.38),-.07),X(j(.45),-.085)],
-    w:.95,taper:"end",label:"the draped arm"});
-  for(let f=0;f<3;f++)
-    plan.push({pts:[X(.45+f*.012,-.086+f*.004),X(.49+f*.013,-.07+f*.007)],
-      w:.6,taper:"end",label:"the hand"});
+/* -- seated: knees drawn up, arms folded across them, head bowed -- */
+function planFigureSeated(W,H,plan){
+  const dir=pick([1,-1]);                 /* which way the knees point */
+  const S2=Math.min(W,H)*R(.74,.86);
+  const cx=W*R(.47,.53),cy=H*R(.5,.54);
+  const Q=(x,y)=>[cx-dir*x*S2,cy+y*S2];   /* x grows toward the knees  */
+  const j=a=>a+R(-.012,.012);
+  /* the bowed head: an open loop, the gap toward the chest */
+  const hc=Q(-.12,-.33),hr=S2*.105;
+  const gapA=dir>0?2.45:0.25;             /* lower, on the knee side   */
+  plan.push({pts:mArcPts(hc[0],hc[1],hr,hr*1.04,
+    gapA+.55,gapA+2*Math.PI-.1,0,18),
+    w:1.0,taper:"both",label:"the bowed head"});
+  /* the chest falls from the chin, on down the arm to the knee */
+  plan.push({pts:[[hc[0]+dir*hr*.55,hc[1]+hr*.95],
+    Q(j(.05),-.19),Q(j(.16),-.07),Q(j(.26),.04)],
+    w:1.1,taper:"end",label:"the chest into the arm"});
+  /* the great back: one arc from the nape around to the hip */
+  plan.push({pts:[
+    [hc[0]-dir*hr*.95,hc[1]+hr*.35],
+    Q(j(-.3),-.18),Q(j(-.36),-.02),Q(j(-.35),.16),Q(j(-.27),.3)],
+    w:1.2,taper:"end",label:"the great back"});
+  /* the hip sweeps under, leftward beneath the folded legs */
+  plan.push({pts:[Q(j(-.27),.3),Q(j(-.1),.41),Q(j(.14),.44),Q(j(.3),.4)],
+    w:1.15,taper:"end",label:"the hip beneath"});
+  /* the folded thigh: one big rounded mass */
+  plan.push({pts:[Q(j(.25),.05),Q(j(.38),.1),Q(j(.43),.22),Q(j(.35),.32),Q(j(.22),.34)],
+    w:1.15,taper:"both",label:"the folded knees"});
+  /* the shin tucked beneath it */
+  plan.push({pts:[Q(j(.24),.2),Q(j(.36),.27),Q(j(.34),.37),Q(j(.24),.41)],
+    w:1.0,taper:"both",label:"the shin beneath"});
+  /* the forearm resting across the knees */
+  plan.push({pts:[Q(j(.08),.05),Q(j(.2),.1),Q(j(.28),.17)],
+    w:.95,taper:"end",label:"the forearm across the knees"});
+  /* the foot peeking out: one or two small marks */
+  plan.push({pts:[Q(j(.24),.41),Q(j(.34),.44),Q(.33,.485)],
+    w:.9,taper:"end",label:"the foot"});
+  if(rnd()<.4)plan.push({pts:[Q(.25,.46),Q(j(.31),.485)],w:.75,taper:"end",label:"the foot"});
+  /* a short interior fold, sometimes */
+  if(rnd()<.4)plan.push({pts:[Q(j(-.12),.3),Q(j(.02),.34)],
+    w:.85,taper:"both",label:"the fold of the hip"});
   return plan;
 }
 
@@ -3864,10 +3894,7 @@ function leafPts(cx,cy,Lr,ang,lobes){
 function planFleurs(W,H){
   const plan=[];
   const S=Math.min(W,H);
-  const tY=H*R(.66,.74);
-  /* the table edge */
-  plan.push({pts:[[W*R(.04,.1),tY+R(-6,6)*MAT_U],[W*.5,tY+R(-10,10)*MAT_U],[W*R(.9,.96),tY+R(-6,6)*MAT_U]],
-    w:1.15,taper:"both",label:"the table edge"});
+  const tY=H*R(.68,.76);          /* where the vase rests — no line drawn */
   /* the vase */
   const vx=W*R(.44,.56),vh=S*R(.21,.28),mw=vh*R(.36,.48);
   const shape=pick(["round","pitcher","tall"]);
@@ -3883,19 +3910,22 @@ function planFleurs(W,H){
   }
   plan.push({pts:mArcPts(vx,vTop,mw,mw*.24,Math.PI*.06,Math.PI*.94,0,10),
     w:.9,taper:"both",label:"the mouth of the vase"});
+  plan.push({pts:[[vx-fw*1.08,tY],[vx,tY+R(3,8)*MAT_U],[vx+fw*1.08,tY]],
+    w:.95,taper:"both",label:"the foot of the vase"});
   if(shape==="pitcher")
-    plan.push({pts:mArcPts(vx+bw*1.05,tY-vh*.55,bw*.5,vh*.32,-Math.PI*.45,Math.PI*.5,0,12),
+    plan.push({pts:[[vx+bw*.88,tY-vh*.6],[vx+bw*1.42,tY-vh*.54],
+      [vx+bw*1.38,tY-vh*.3],[vx+bw*.92,tY-vh*.24]],
       w:.95,taper:"both",label:"the handle"});
-  if(rnd()<.5)
+  if(rnd()<.2)
     plan.push({pts:[[vx-bw*.8,tY-vh*.42],[vx-bw*.25,tY-vh*.34],[vx+bw*.3,tY-vh*.44],[vx+bw*.8,tY-vh*.36]],
       w:.7,taper:"both",label:"the vase's band"});
 
   /* the bouquet: stems rising, blooms opening — spread, never crowded */
-  const K=4+RI(0,3);
+  const K=3+RI(0,2);
   const domeR=S*R(.2,.27);
   const blooms=[];
   for(let i=0;i<K;i++){
-    const a=Math.PI*(.12+.76*i/(K-1))+R(-.05,.05);
+    const a=Math.PI*(.12+.76*i/Math.max(1,K-1))+R(-.05,.05);
     const rr=domeR*R(.55,1.0)*(i%2?1:.72);
     const bx2=vx-Math.cos(a)*rr*1.5, by2=vTop-mw*.18-Math.sin(a)*rr;
     blooms.push([bx2,by2]);
@@ -3942,7 +3972,7 @@ function planFleurs(W,H){
   }
 
   /* the great lobed leaf — the signature, with its midrib */
-  const nleaf=1+(rnd()<.45?1:0);
+  const nleaf=1+(rnd()<.25?1:0);
   for(let i=0;i<nleaf;i++){
     const side=i?1:-1;
     const lx=vx+side*bw*R(1.5,2.1),ly=vTop-domeR*R(-.15,.2);
@@ -3963,140 +3993,13 @@ function planFleurs(W,H){
       w:.8,taper:"end",label:"a lobed leaf"});
   }
   /* small almond leaves on the stems */
-  for(let i=0;i<3+RI(0,3);i++){
+  for(let i=0;i<2+RI(0,1);i++){
     const sx=vx+R(-1,1)*domeR*.8, sy=vTop-R(.0,.6)*domeR;
     const ll=domeR*R(.14,.22),a=R(-1,1);
     plan.push({pts:[[sx,sy],[sx+Math.cos(a-.35)*ll,sy+Math.sin(a-.35)*ll],
       [sx+Math.cos(a)*ll*1.5,sy+Math.sin(a)*ll*1.5],
       [sx+Math.cos(a+.35)*ll,sy+Math.sin(a+.35)*ll],[sx,sy]],
       w:.75,taper:"both",label:"an almond leaf"});
-  }
-  /* a fruit or two keeping the vase company */
-  const nf=RI(0,2);
-  for(let i=0;i<nf;i++){
-    const fx2=vx+pick([1,-1])*bw*R(1.6,2.6),fr2=vh*R(.16,.22);
-    plan.push({pts:mArcPts(fx2,tY-fr2*.85,fr2,fr2*.85,-.3,5.9,R(0,.5),14),
-      w:.9,taper:"both",label:"a fruit on the table"});
-    plan.push({pts:[[fx2,tY-fr2*1.7],[fx2+fr2*.2,tY-fr2*2.1]],w:.7,taper:"end",label:"a fruit on the table"});
-  }
-  return plan;
-}
-
-/* ---- nature morte: the compotier, the pitcher, the patterned cloth ---- */
-function planNature(W,H){
-  const plan=[];
-  const S=Math.min(W,H);
-  const fY=H*R(.7,.78);
-  /* the table: one front edge, and a corner falling away */
-  plan.push({pts:[[W*.03,fY+R(-8,8)*MAT_U],[W*.5,fY+R(-12,12)*MAT_U],[W*.97,fY+R(-8,8)*MAT_U]],
-    w:1.2,taper:"none",label:"the table edge"});
-  const cSide=pick([1,-1]);
-  const cX=W*(cSide>0?R(.86,.94):R(.06,.14));
-  plan.push({pts:[[cX,fY],[cX+cSide*W*.02,fY+(H-fY)*.45],[cX+cSide*W*.03,fY+(H-fY)*.85]],
-    w:.95,taper:"end",label:"the table's leg"});
-
-  /* the compotier: rim, belly, stem foot — fruit looking over the rim */
-  const cx=W*R(.3,.4),base=fY-R(.0,.02)*H;
-  const bowlW=S*R(.17,.21),rimH=bowlW*.2;
-  const stemH=bowlW*R(.42,.55);
-  const rimY=base-stemH-bowlW*.34;
-  plan.push({pts:mArcPts(cx,rimY,bowlW,rimH,Math.PI*.04,Math.PI*.96,0,14),
-    w:1.0,taper:"both",label:"the compotier's rim"});
-  if(rnd()<.65)plan.push({pts:mArcPts(cx,rimY,bowlW*.97,rimH*.8,Math.PI*1.08,Math.PI*1.92,0,12),
-    w:.8,taper:"both",label:"the compotier's rim"});
-  plan.push({pts:[[cx-bowlW*.98,rimY+rimH*.4],[cx-bowlW*.6,rimY+bowlW*.32],
-    [cx-bowlW*.14,rimY+bowlW*.38]],w:1.0,taper:"end",label:"the compotier's bowl"});
-  plan.push({pts:[[cx+bowlW*.98,rimY+rimH*.4],[cx+bowlW*.6,rimY+bowlW*.32],
-    [cx+bowlW*.14,rimY+bowlW*.38]],w:1.0,taper:"end",label:"the compotier's bowl"});
-  plan.push({pts:[[cx-bowlW*.13,rimY+bowlW*.38],[cx-bowlW*.09,base-stemH*.4],[cx-bowlW*.3,base-rimH*.2]],
-    w:.95,taper:"end",label:"the compotier's foot"});
-  plan.push({pts:[[cx+bowlW*.13,rimY+bowlW*.38],[cx+bowlW*.09,base-stemH*.4],[cx+bowlW*.3,base-rimH*.2]],
-    w:.95,taper:"end",label:"the compotier's foot"});
-  plan.push({pts:[[cx-bowlW*.38,base-rimH*.15],[cx,base+R(2,5)*MAT_U],[cx+bowlW*.38,base-rimH*.15]],
-    w:.9,taper:"both",label:"the compotier's foot"});
-  /* the fruit: round bodies crowding the rim, no two alike */
-  const nf=3+RI(0,2);
-  let topFruit=null;
-  for(let i=0;i<nf;i++){
-    const t=(i+.5)/nf;
-    const fr2=bowlW*R(.22,.36);
-    const fx2=cx-bowlW*.62+t*bowlW*1.24+R(-.07,.07)*bowlW;
-    const fy2=rimY-fr2*R(.2,.8);
-    if(!topFruit||fy2-fr2<topFruit[1]-topFruit[2])topFruit=[fx2,fy2,fr2];
-    plan.push({pts:mArcPts(fx2,fy2,fr2,fr2*R(.85,.98),Math.PI*R(.55,.8),Math.PI*R(2.5,2.9),R(-.3,.4),16),
-      w:.9,taper:"both",label:"fruit in the bowl"});
-    if(rnd()<.4)plan.push({pts:[[fx2,fy2-fr2*.85],[fx2+fr2*.22,fy2-fr2*1.18]],
-      w:.65,taper:"end",label:"fruit in the bowl"});
-  }
-  if(rnd()<.65&&topFruit){ /* a leaf still on the topmost fruit's stem */
-    const [tx,ty,tr]=topFruit;
-    const lx=tx+tr*.18,ly=ty-tr*1.1;
-    plan.push({pts:[[tx,ty-tr*.8],[lx,ly]],w:.65,taper:"end",label:"a leaf among the fruit"});
-    plan.push({pts:[[lx,ly],[lx+tr*.42,ly-tr*.42],[lx+tr*.95,ly-tr*.3],
-      [lx+tr*.5,ly+tr*.05],[lx,ly]],w:.75,taper:"both",label:"a leaf among the fruit"});
-  }
-
-  /* the pitcher: one closed silhouette — neck, belly, the lip, the handle */
-  const px=W*R(.6,.7),ph2=S*R(.26,.34),pw=ph2*R(.32,.4);
-  const pBase=fY-R(0,.015)*H,pTop=pBase-ph2;
-  const hand=pick([1,-1]);                  /* which side the handle sits */
-  plan.push({pts:[
-    [px-pw*.34,pTop+ph2*.02],[px-pw*.4,pTop+ph2*.2],
-    [px-pw*.95,pTop+ph2*.5],[px-pw*.9,pBase-ph2*.16],[px-pw*.55,pBase]],
-    w:1.05,taper:"end",label:"the pitcher"});
-  plan.push({pts:[
-    [px+pw*.34,pTop+ph2*.04],[px+pw*.4,pTop+ph2*.2],
-    [px+pw*.95,pTop+ph2*.5],[px+pw*.9,pBase-ph2*.16],[px+pw*.55,pBase]],
-    w:1.05,taper:"end",label:"the pitcher"});
-  /* the lip: a small open spout to one side of the mouth */
-  plan.push({pts:[[px-pw*.34,pTop+ph2*.02],[px-pw*.18,pTop-ph2*.045],[px+pw*.05,pTop+ph2*.0],
-    [px+pw*.34,pTop+ph2*.04]],w:.9,taper:"both",label:"the pitcher's lip"});
-  plan.push({pts:[[px+hand*pw*.38,pTop+ph2*.14],
-    [px+hand*pw*.95,pTop+ph2*R(.2,.28)],
-    [px+hand*pw*1.06,pTop+ph2*.46],
-    [px+hand*pw*.99,pTop+ph2*.6]],
-    w:.95,taper:"both",label:"the pitcher's handle"});
-  plan.push({pts:[[px-pw*.55,pBase],[px,pBase+R(2,5)*MAT_U],[px+pw*.55,pBase]],
-    w:.9,taper:"both",label:"the pitcher"});
-  if(rnd()<.6)plan.push({pts:[[px-pw*.78,pBase-ph2*.42],[px-pw*.2,pBase-ph2*.36],
-    [px+pw*.35,pBase-ph2*.44],[px+pw*.78,pBase-ph2*.38]],w:.7,taper:"both",label:"the pitcher's band"});
-
-  /* the cloth remembers its pattern: a running vine along the front */
-  const vineY=fY+(H-fY)*.45;
-  const vine=[];const nvp=9;
-  for(let i=0;i<=nvp;i++)
-    vine.push([W*.06+i/nvp*W*.88,vineY+Math.sin(i*1.25+R(-.2,.2))*(H-fY)*.18]);
-  plan.push({pts:vine,w:.8,taper:"both",label:"the cloth's vine"});
-  for(let i=1;i<nvp;i+=2){
-    const [lx,ly]=vine[i];
-    const up=(i%4===1)?-1:1,ll=(H-fY)*R(.14,.2),a=up>0?R(.9,1.4):R(-1.4,-.9);
-    plan.push({pts:[[lx,ly],[lx+Math.cos(a-.4)*ll,ly+Math.sin(a-.4)*ll],
-      [lx+Math.cos(a)*ll*1.4,ly+Math.sin(a)*ll*1.4],
-      [lx+Math.cos(a+.4)*ll,ly+Math.sin(a+.4)*ll],[lx,ly]],
-      w:.7,taper:"both",label:"the cloth's leaves"});
-    if(rnd()<.5)plan.push({dot:[lx+Math.cos(a)*ll*1.9,ly+Math.sin(a)*ll*1.9,(H-fY)*.025],
-      label:"the cloth's pattern"});
-  }
-
-  /* a branch leaning in from beyond the sheet, sometimes */
-  if(rnd()<.5){
-    const side=pick([1,-1]);
-    const sx=W*(side>0?1.0:0),sy=H*R(.06,.18);
-    const tip=[sx-side*W*R(.16,.24),sy+H*R(.1,.2)];
-    const mid=[(sx+tip[0])/2+side*W*.01,(sy+tip[1])/2-H*.03];
-    plan.push({pts:[[sx,sy],mid,tip],w:.85,taper:"end",label:"a branch leaning in"});
-    const nl=3+RI(0,2);
-    for(let k=0;k<nl;k++){
-      const t=(k+.6)/(nl+.4);
-      const bx3=t<.5?sx+(mid[0]-sx)*t*2:mid[0]+(tip[0]-mid[0])*(t-.5)*2;
-      const by3=t<.5?sy+(mid[1]-sy)*t*2:mid[1]+(tip[1]-mid[1])*(t-.5)*2;
-      const ll=W*R(.035,.055),aa=(k%2?1:-1)*R(.5,1.0)+(side>0?Math.PI*1.1:-.1);
-      plan.push({pts:[[bx3,by3],
-        [bx3+Math.cos(aa-.35)*ll,by3+Math.sin(aa-.35)*ll],
-        [bx3+Math.cos(aa)*ll*1.5,by3+Math.sin(aa)*ll*1.5],
-        [bx3+Math.cos(aa+.35)*ll,by3+Math.sin(aa+.35)*ll],[bx3,by3]],
-        w:.75,taper:"both",label:"a branch leaning in"});
-    }
   }
   return plan;
 }
@@ -4178,7 +4081,6 @@ function* matissePhase(seed,fmtKey,subjKey,statusCb,prog,design){
     ?planFromDesign(W,H,design)
     :subjKey==="figure"?planFigure(W,H)
     :subjKey==="fleurs"?planFleurs(W,H)
-    :subjKey==="nature"?planNature(W,H)
     :planVisage(W,H);
 
   const finishUnits=6;
@@ -4510,10 +4412,9 @@ function sanitizeDrawing(v){
 }
 
 const DRAUGHTSMAN_THEMES={
-  visage:"a large serene face in the manner of the late mask drawings, 7–12 strokes AT MOST: ONE bold closed egg-shaped contour holds the whole head (NO hair, NO neck, NO shoulders, NO jewellery); inside it only two brows (one flowing on into the nose in a single line), the eyes as short heavy dashes, and a small wavy mouth",
-  figure:"a reclining figure study in the classical manner — composed and serene, the long sweep of the back rising over the hip, a small profile head resting on a cushion, drawn with a life-class economy of contour (a tasteful nude or draped figure, nothing explicit)",
-  fleurs:"a vase of flowers on a table edge — a few stems fanning out, simple open blooms, one or two broad lobed leaves with a midrib",
-  nature:"a still life on a table — a footed fruit bowl with round fruit looking over the rim, a pitcher beside it, and a cloth whose pattern is a running vine of leaves along the front edge"
+  visage:"a large serene face in the manner of the late mask drawings, 7–12 strokes AT MOST: ONE bold closed egg-shaped contour holds the whole head (NO hair, NO neck, NO shoulders, NO jewellery); inside it only two brows — they MUST differ, and exactly one of them flows on into the nose so the nose is ONE asymmetric line (NEVER two symmetric lines, never a triangle or trapezoid) — the eyes as short heavy HORIZONTAL dashes, and a small wavy mouth; mirror MUST be false",
+  figure:"a figure study in the economy of the late charcoal nudes — seated with knees drawn up and head bowed, or reclining — built from 6–10 big rounded curves ONLY: an open loop for the head with NOTHING inside it (no face, no hair), one great line for the back, simple masses for the folded legs; NO ground line, NO hands or fingers, NO cushion (a tasteful nude, nothing explicit)",
+  fleurs:"a vase of flowers — a few stems fanning into simple open blooms, one broad lobed leaf with a midrib, the vase closed by its own small base curve; NO table line, NO ground line"
 };
 async function askDraughtsman(subjKey){
   const txt=`You are a master draughtsman in the school of Matisse, composing a LINE DRAWING in pen and Indian ink on a single sheet. Subject: ${DRAUGHTSMAN_THEMES[subjKey]||DRAUGHTSMAN_THEMES.visage}.
@@ -4527,7 +4428,13 @@ Stroke types (all drawn in the same ink):
 {"t":"knot","x":..,"y":..,"r":..} — an ink dot (an iris, a bead, a bud).
 Coordinates x,y in [-1,1], centre 0,0, x to the right, y DOWN; keep the drawing within ±0.85. If the subject is left-right symmetric you may set mirror:true and draw only the right half (x>=0) plus the centreline — otherwise mirror:false.`;
   const out=await askClaude([{type:"text",text:txt}],3600);
-  return sanitizeDrawing(parseLooseJSON(out));
+  const d=sanitizeDrawing(parseLooseJSON(out));
+  if(d&&d.strokes){
+    /* the wing's own discipline, whatever the reply said */
+    if(subjKey==="visage"){d.mirror=false;d.strokes=d.strokes.slice(0,14);}
+    if(subjKey==="figure"){d.strokes=d.strokes.slice(0,12);}
+  }
+  return d;
 }
 
 /* the curator writes the wall label for the finished work */
