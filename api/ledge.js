@@ -16,6 +16,7 @@ const FORMATS = ["square", "classic", "pano", "portrait"];
 const PALETTES = ["convergence", "number31", "lavender", "bluepoles", "onyx"];
 const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
 const MOTIFS = ["chaine", "cavalcade", "jardin"];
+const MIRO_PALETTES = ["reve", "constellation", "bleu", "nocturne", "terre"];
 
 function env(name, alt) {
   return process.env[name] || process.env[alt] || "";
@@ -41,9 +42,11 @@ function sanitize(e) {
   let thumb = typeof e.thumb === "string" && e.thumb.startsWith("data:image/") ? e.thumb : "";
   if (thumb.length > 150000) thumb = "";
   if (!id || !Number.isFinite(seed)) return null;
-  const mode = e.mode === "scarf" ? "scarf" : "pollock";
+  const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro" : "pollock";
   if (mode === "scarf") {
     if (!SCARF_PALETTES.includes(e.palette)) return null;
+  } else if (mode === "miro") {
+    if (!FORMATS.includes(e.format) || !MIRO_PALETTES.includes(e.palette)) return null;
   } else {
     if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
   }
@@ -56,9 +59,23 @@ function sanitize(e) {
   };
   if (mode === "scarf") {
     out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
-    if (e.design && Array.isArray(e.design.strokes)) {
+    if (e.design && typeof e.design === "object") {
       const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
+      const dOut = {
+        subject: String(e.design.subject || "").slice(0, 48),
+        mirror: !!e.design.mirror
+      };
+      if (e.design.composition === "garden" || e.design.composition === "medallion")
+        dOut.composition = e.design.composition;
+      if (e.design.density !== undefined) dOut.density = cl(e.design.density, 0, 1);
+      if (Array.isArray(e.design.accents)) {
+        const acc = e.design.accents.slice(0, 4)
+          .filter(x => x && typeof x === "object")
+          .map(x => ({ x: cl(x.x, .05, .95), y: cl(x.y, .05, .95), r: cl(x.r, .05, .25) }));
+        if (acc.length) dOut.accents = acc;
+      }
       const strokes = [];
+      if (Array.isArray(e.design.strokes)) {
       for (const st of e.design.strokes.slice(0, 80)) {
         if (!st || typeof st !== "object") continue;
         const c = Math.min(3, Math.max(0, st.c | 0));
@@ -79,29 +96,33 @@ function sanitize(e) {
           strokes.push({ t: "knot", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .08) });
         }
       }
-      if (strokes.length) {
-        out.design = {
-          subject: String(e.design.subject || "").slice(0, 48),
-          mirror: !!e.design.mirror,
-          strokes
-        };
       }
+      if (strokes.length) dOut.strokes = strokes;
+      if (dOut.strokes || dOut.composition || dOut.accents) out.design = dOut;
     }
   }
   if (typeof e.story === "string" && e.story.trim()) {
     out.story = e.story.trim().slice(0, 600);
   }
   if (Array.isArray(e.directives)) {
-    const TYPES = ["pour", "wash", "web", "splash"];
+    const TYPES = mode === "miro"
+      ? ["star", "disc", "blob", "moon", "line", "dots"]
+      : ["pour", "wash", "web", "splash"];
+    const COLORS = ["red", "blue", "yellow", "green", "black", "white"];
     const dirs = e.directives.slice(0, 3).map(round =>
       Array.isArray(round)
-        ? round.slice(0, 6).map(a => ({
-            type: TYPES.includes(a && a.type) ? a.type : "pour",
-            layer: Math.min(31, Math.max(0, (a && a.layer) | 0)),
-            x: Math.min(1, Math.max(0, Number(a && a.x) || 0.5)),
-            y: Math.min(1, Math.max(0, Number(a && a.y) || 0.5)),
-            r: Math.min(0.6, Math.max(0.05, Number(a && a.r) || 0.2))
-          }))
+        ? round.slice(0, 6).map(a => {
+            const act = {
+              type: TYPES.includes(a && a.type) ? a.type : TYPES[0],
+              layer: Math.min(31, Math.max(0, (a && a.layer) | 0)),
+              x: Math.min(1, Math.max(0, Number(a && a.x) || 0.5)),
+              y: Math.min(1, Math.max(0, Number(a && a.y) || 0.5)),
+              r: Math.min(0.6, Math.max(0.015, Number(a && a.r) || 0.2))
+            };
+            if (mode === "miro")
+              act.color = COLORS.includes(a && a.color) ? a.color : "black";
+            return act;
+          })
         : []
     ).filter(r => r.length);
     if (dirs.length) out.directives = dirs;

@@ -117,6 +117,30 @@ ledge itself is capped at five entries server-side.
 - Five enamel palettes inspired by the classic canon. Each work gets a museum
   placard with a generated title and physical dimensions.
 
+## The dream wing — Joan Miró
+
+The third collection paints in Miró's dream language: biomorphic blobs,
+filled-lens eyes, asterisk stars, crescents, ladders of escape, birds,
+pennants, half-divided discs, french-dot trails and thin calligraphic
+lines that wander between forms — in oil, on washed and scumbled grounds
+with dry-brush streaks and occasional spatter, lit by the same relief
+engine as the pollock wing. All canvas formats apply.
+
+- **Palettes** — Rêve (ivory, full primaries), Constellation (mottled
+  parchment, dense star fields), Bleu (cobalt monochrome, sparse
+  wanderers), Nocturne (umber night, bright forms, pale line) and Terre
+  (burnt sienna, circus figures).
+- **Seeded compositions** — each work rolls *personnages* (large figures
+  with whiskers, lens eyes, triangle skirts and raised stars),
+  *constellation* (dozens of interlinked small forms) or *sparse* (a few
+  forms in great space, the Bleu default); plus an optional horizon line
+  and ground spatter. Connector lines prefer nearby companions and bow
+  like a hand drew them.
+- **AI director** — with AI on, Miró's "inner eye" reviews the dream up
+  to twice and commissions placed touch-ups (stars, discs, blobs, moons,
+  lines, dot trails in named colours), recorded for pixel-identical
+  rehang; the curator writes the label in a poetic mid-century voice.
+
 ## The silk wing — embroidered carrés
 
 A **Collection** chooser at the top of the controls switches between the
@@ -141,6 +165,16 @@ satin-stitched centre rosette.
   recipe, same pixels; new seed, new design.
 - **Colourways** — Flamme, Marine, Émeraude, Noir and Poudre, each a
   ground + border + gold + three thread colours.
+- **The garden composition** — alongside the classic medallion, each
+  commission can roll (or the AI designer can choose) an all-over
+  botanical *garden* in the manner of the maison's great jungle scarves:
+  a **fractal flora engine** (fronds whose branches are smaller fronds,
+  one grammar from canopy to sprig) lays dark under-canopy silhouettes,
+  arcing palm crowns, corner spills, wandering vines with berries,
+  clustered flower-burst colour stories with stray blooms, small far-off
+  birds — balanced asymmetry, massed forms, no geometric scaffold. The
+  medallion mode was decluttered in the same spirit: fewer simultaneous
+  band treatments, no connector arcs, a sparser field with leaf sprigs.
 - **Embroidery, not flat print** — every mark is laid as thread: stem
   stitches, satin-stitch petals with darker couched outlines, layered
   double rosettes, french knots — each raising the height field so the
@@ -162,8 +196,10 @@ on the communal ledge alongside the paintings (server-sanitised
 mode/motif/design), and the AI curator writes their labels in the voice
 of a great maison.
 
-**The AI illustrator** — with the AI toggle on, each fresh carré begins
-with Claude composing a figurative centrepiece as a constrained stroke
+**The AI designer** — with the AI toggle on, each fresh carré begins
+with Claude as head designer: it chooses the composition (garden or
+medallion), sets the density, places the colour-accent regions for a
+garden, or composes a figurative centrepiece as a constrained stroke
 drawing (polylines, arcs, satin patches, french knots in the colourway's
 threads — nautical subjects for Chaîne, equestrian for Cavalcade,
 botanical for Jardin, with optional mirror symmetry), and the atelier
