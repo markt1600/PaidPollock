@@ -6156,15 +6156,17 @@ function crownFilled(ctx, cx, baseY, w, h, fill, withBlock) {
 
 /* ---- the iconic FILLED MASK HEAD: dark oval, almond ring-eyes, teeth bar ---- */
 function almondEye(ctx, cx, cy, w, h, tilt) {
-  const pts = [], ca = Math.cos(tilt), sa = Math.sin(tilt);
-  for (let i = 0; i <= 10; i++) { const t=i/10, ex=-w/2+w*t, ey=-Math.sin(Math.PI*t)*h/2; pts.push([cx+ex*ca-ey*sa, cy+ex*sa+ey*ca]); }
-  for (let i = 10; i >= 0; i--) { const t=i/10, ex=-w/2+w*t, ey= Math.sin(Math.PI*t)*h/2; pts.push([cx+ex*ca-ey*sa, cy+ex*sa+ey*ca]); }
+  const pts = [], ca = Math.cos(tilt), sa = Math.sin(tilt), jx = w*.05, jy = h*.16;
+  for (let i = 0; i <= 10; i++) { const t=i/10, ex=-w/2+w*t+J(jx), ey=-Math.sin(Math.PI*t)*h/2 - J(jy*.4); pts.push([cx+ex*ca-ey*sa, cy+ex*sa+ey*ca]); }
+  for (let i = 10; i >= 0; i--) { const t=i/10, ex=-w/2+w*t+J(jx), ey= Math.sin(Math.PI*t)*h/2 + J(jy*.4); pts.push([cx+ex*ca-ey*sa, cy+ex*sa+ey*ca]); }
   ctx.beginPath(); pts.forEach((p,i) => i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
   ctx.fillStyle = '#e8c23a'; ctx.fill();
   line(ctx, pts, 1.8*U, '#15110d', {});
-  const ir = Math.min(w,h)*.32;
-  ctx.fillStyle = '#d9641f'; ctx.beginPath(); ctx.arc(cx,cy,ir,0,6.283); ctx.fill();
-  ctx.fillStyle = '#15110d'; ctx.beginPath(); ctx.arc(cx+J(1),cy+J(1),ir*.42,0,6.283); ctx.fill();
+  const ir = Math.min(w,h)*.32, ip = [];          /* a wobbly iris, not a perfect disc */
+  for (let k=0;k<=11;k++){ const a=k/11*6.283, rr=ir*(1+J(.22)); ip.push([cx+Math.cos(a)*rr+J(1), cy+Math.sin(a)*rr+J(1)]); }
+  ctx.beginPath(); ip.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
+  ctx.fillStyle = '#d9641f'; ctx.fill();
+  ctx.fillStyle = '#15110d'; ctx.beginPath(); ctx.arc(cx+J(1.5),cy+J(1.5),ir*.42,0,6.283); ctx.fill();
 }
 function maskHead(ctx, cx, cy, s) {
   const w = s, h = s*1.25, dark = pick(['#241410','#1a1310','#2a1712','#15110d']);
@@ -6207,9 +6209,15 @@ function scribbleSkull(ctx, cx, cy, s) {
   line(ctx, out, 2.6*U, '#2a1410', {});
   const eyeY = cy - h*.12, ex = w*.27;
   for (const sgn of [-1,1]) { const ox = cx + sgn*ex;
-    if (R(0,1) < .5) { line(ctx, mArcPts(ox, eyeY, w*.13, w*.13, 0, 6.283, 0, 12), 2*U, '#2a1410');
-      ctx.fillStyle = '#2a1410'; for (let g=0;g<6;g++){ctx.globalAlpha=R(.5,.85);stamp(ctx,ox+J(2),eyeY+J(2),2.4*U);} ctx.globalAlpha=1; }
-    else { line(ctx, [[ox-w*.12,eyeY-w*.12],[ox+w*.12,eyeY+w*.12]], 2*U, '#2a1410'); line(ctx, [[ox+w*.12,eyeY-w*.12],[ox-w*.12,eyeY+w*.12]], 2*U, '#2a1410'); }
+    /* a hand-drawn pale socket: wobbly edge, slight per-eye variation, not a disc */
+    const ey2 = eyeY + J(w*.04), er = w*.15*(1+J(.12)), sp = [];
+    for (let k=0;k<=12;k++){ const a=k/12*6.283, rr=er*(1+J(.2)); sp.push([ox+Math.cos(a)*rr+J(1.2), ey2+Math.sin(a)*rr+J(1.2)]); }
+    ctx.fillStyle = '#e8c23a';
+    ctx.beginPath(); sp.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.fill();
+    line(ctx, sp.concat([sp[0]]), 1.4*U, '#2a1410');
+    if (R(0,1) < .5) { line(ctx, mArcPts(ox, ey2, er*.82, er*.82, 0, 6.283, 0, 12), 2*U, '#2a1410');
+      ctx.fillStyle = '#2a1410'; for (let g=0;g<6;g++){ctx.globalAlpha=R(.5,.85);stamp(ctx,ox+J(2),ey2+J(2),2.4*U);} ctx.globalAlpha=1; }
+    else { line(ctx, [[ox-er*.78,ey2-er*.78],[ox+er*.78,ey2+er*.78]], 2*U, '#2a1410'); line(ctx, [[ox+er*.78,ey2-er*.78],[ox-er*.78,ey2+er*.78]], 2*U, '#2a1410'); }
   }
   line(ctx, [[cx+J(2), eyeY+w*.14],[cx+J(2), cy+h*.05]], 1.8*U, '#2a1410');
   teethBar(ctx, cx, cy+h*.2, w*.6, h*.12, '#2a1410');
@@ -6262,7 +6270,26 @@ function torsoFigure(ctx, cx, cy, s, accent) {
   scribbleBox(ctx, cx+tw*.14, ty+th, tw*.2, th*.5, '#1a1510', { alpha:1, jit:.14 });
 }
 
-function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
+/* ---- AI DIRECTOR support: it only ever sets the COLOUR SCHEME and the
+   hand-coloured BACKGROUND FIELDS. It picks from named house colours (never
+   raw hex), so the muted discipline holds; it never touches the mask, the
+   geometry or the words. ---- */
+const BQ_NAMED = { red:'#c4341e', yellow:'#e3b417', blue:'#205aa0', green:'#3f8f6b',
+                   ochre:'#cf9a2b', teal:'#2f6f63', gold:'#d8b94a', oxblood:'#b5321f' };
+function bqColor(name, fallback) { return BQ_NAMED[name] || fallback; }
+function bqAccents(directives) {
+  if (!directives || !directives.dominant) return ACCENT;
+  const dom = bqColor(directives.dominant, ACCENT[0]);
+  const sec = bqColor(directives.accent, ACCENT[2]);
+  const restraint = directives.restraint != null ? Math.max(0, Math.min(1, directives.restraint)) : .6;
+  let acc = [dom, dom, dom, sec, sec];        /* dominant carries the weight */
+  if (restraint < .75) acc = acc.concat([ACCENT[1]]);
+  if (restraint < .4)  acc = acc.concat(ACCENT);
+  return acc;
+}
+
+function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog, directives) {
+  directives = directives || {};
   const fmt = FORMATS[fmtKey] || FORMATS.classic;
   const long = LONG_EDGE;
   const W = fmt.w >= fmt.h ? long : Math.round(long * fmt.w / fmt.h);
@@ -6271,9 +6298,11 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
   const ctx = hctx;
   const S = Math.min(W, H);
   U = (W + H) / 2000;
-  rnd = mulberry32((seed * 2654435761) >>> 0);
+  const RNG = mulberry32((seed * 2654435761) >>> 0);
+  rnd = RNG;
   prog.total = (prog.done || 0) + 24;
   const tick = (lab) => { statusCb(0, 0, { c: 'oilstick & crayon', basquiat: lab }); };
+  const ACCENT = bqAccents(directives);          /* the director's colour scheme (or the house default) */
 
   /* ---- THE PAPER: off-white wove, no lines ---- */
   ctx.fillStyle = PAPERS[(R(0, PAPERS.length)) | 0]; ctx.fillRect(0, 0, W, H);
@@ -6281,14 +6310,31 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
   const recent = [];
   const pickWord = () => { let w, t=0; do { w = pick(WORDBANK); t++; } while (recent.includes(w) && t<6); recent.push(w); if (recent.length>4) recent.shift(); return w; };
 
-  /* ---- hand-coloured regions behind the text: sometimes a loose scribble,
-         sometimes an organic shape coloured in with a colour pencil ---- */
-  for (let i = 0; i < 2 + (R(0,3)|0); i++) {
-    const col = pick(['#2f6fb0','#2f6fb0','#d9641f','#c4341e','#cf9a2b','#2f6f63','#e8c23a']);
-    if (R(0,1) < .5)
-      colorScribble(ctx, R(.0,.7)*W, R(.0,.7)*H, R(.2,.45)*W, R(.14,.4)*H, col);
-    else
-      pencilShape(ctx, R(.12,.85)*W, R(.12,.85)*H, R(.09,.2)*W, R(.07,.18)*H, col);
+  /* ---- hand-coloured regions behind the text. Drawn on a FORKED rng so the
+         director can set them without disturbing the rest of the composition;
+         when the director supplies regions, they replace the random ones. ---- */
+  {
+    const REGRNG = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+    setRnd(REGRNG);
+    const REGION_COLS = ['#2f6fb0','#2f6fb0','#d9641f','#c4341e','#cf9a2b','#2f6f63','#e8c23a'];
+    if (directives.regions && directives.regions.length) {
+      for (const rg of directives.regions.slice(0,4)) {
+        const col = bqColor(rg.color, pick(REGION_COLS));
+        const x = clamp(+rg.x||0,0,1)*W, y = clamp(+rg.y||0,0,1)*H,
+              w = clamp(+rg.w||.25,.06,.7)*W, h = clamp(+rg.h||.2,.06,.6)*H;
+        if (rg.style === 'pencil') pencilShape(ctx, x + w/2, y + h/2, w/2, h/2, col);
+        else colorScribble(ctx, x, y, w, h, col);
+      }
+    } else {
+      for (let i = 0; i < 2 + (R(0,3)|0); i++) {
+        const col = pick(REGION_COLS);
+        if (R(0,1) < .5)
+          colorScribble(ctx, R(.0,.7)*W, R(.0,.7)*H, R(.2,.45)*W, R(.14,.4)*H, col);
+        else
+          pencilShape(ctx, R(.12,.85)*W, R(.12,.85)*H, R(.09,.2)*W, R(.07,.18)*H, col);
+      }
+    }
+    setRnd(RNG);                                /* resume the main stream, untouched */
   }
   prog.done++; tick('the ground'); yield;
   /* ---- one or two hand-painted black masses ---- */
@@ -6401,9 +6447,9 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
 }
 
 /* the wing entry: the dense paper, then the gallery's gentle paper finish */
-function* basquiatGenerate(seed, fmtKey, palKey, statusCb, prog = {}) {
+function* basquiatGenerate(seed, fmtKey, palKey, statusCb, prog = {}, directives) {
   if (prog.total === undefined) { prog.total = 1; prog.done = 0; }
-  const C = yield* basquiatPhase(seed, fmtKey, palKey, statusCb, prog);
+  const C = yield* basquiatPhase(seed, fmtKey, palKey, statusCb, prog, directives);
   yield* paperFinish(C, statusCb, prog);
   return C;
 }
@@ -6522,6 +6568,33 @@ function parseLooseJSON(raw){
     str=str.slice(0,-1);
   }
   throw new Error("unparseable design");
+}
+
+/* the Basquiat director: it looks at the finished canvas and sets ONLY the
+   colour scheme and the hand-coloured background fields — never the mask,
+   the geometry or the words. It picks from named house colours. */
+async function askBasquiatDirector(){
+  const colours="red, yellow, blue, green, ochre, teal, gold, oxblood";
+  const txt=`You are a contemporary curator-director shaping a Basquiat-style canvas already drawn (image attached). The dense hand-lettered words, the crowned skull and all the marks are FIXED \u2014 you never change, move or add words or figures. You decide only the COLOUR SCHEME and the hand-coloured BACKGROUND FIELDS behind the text. Read the canvas for a through-line, then reply with ONLY minified JSON, no prose, no code fences:
+{"concept":"<=70 chars: the idea you read","dominant":"<colour>","accent":"<colour>","restraint":<0-1>,"regions":[{"x":<0-1>,"y":<0-1>,"w":<0.1-0.6>,"h":<0.1-0.5>,"color":"<colour>","style":"scribble"|"pencil"}]}
+Choose dominant and accent from: ${colours}. restraint = how strictly to suppress other accents (1 = two colours only). Place 1 to 3 fields where the composition wants colour and weight (x,y = top-left as fractions). Keep it muted and disciplined: oilstick on paper, never neon.`;
+  const out=await askClaude([
+    {type:"image",source:{type:"base64",media_type:"image/jpeg",data:snapshotForAI()}},
+    {type:"text",text:txt}
+  ],500);
+  return sanitizeBqDirectives(parseLooseJSON(out));
+}
+function sanitizeBqDirectives(v){
+  const NAMES=["red","yellow","blue","green","ochre","teal","gold","oxblood"];
+  const nm=(c,d)=>NAMES.includes(c)?c:d;
+  const regions=Array.isArray(v.regions)?v.regions.slice(0,4).map(r=>({
+    x:clamp(+(r&&r.x)||0,0,.95), y:clamp(+(r&&r.y)||0,0,.95),
+    w:clamp(+(r&&r.w)||.25,.08,.6), h:clamp(+(r&&r.h)||.2,.08,.5),
+    color:nm(r&&r.color,"blue"), style:(r&&r.style)==="pencil"?"pencil":"scribble"
+  })):[];
+  return { concept:String(v.concept||"").slice(0,90),
+    dominant:nm(v.dominant,"red"), accent:nm(v.accent,"blue"),
+    restraint:clamp(+v.restraint,0,1)||.6, regions };
 }
 
 /* the illustrator: Claude composes a figurative centrepiece as strokes,
@@ -7030,10 +7103,31 @@ function startGeneration(opts={}){
       await runGen(it,!fast);
     }else
     if(BA){
-      /* the canvas wing: dense oilstick & crayon, painted by the house alone */
-      const it=basquiatGenerate(state.seed,state.format,"studio",statusCb,prog);
+      /* the canvas wing: the house paints it; if the AI is on, the director
+         then sets a colour scheme + the background fields, and it is repainted */
+      const dir0=entry?((entry.directives&&entry.directives[0])||null):null;
+      const it=basquiatGenerate(state.seed,state.format,"studio",statusCb,prog,dir0);
       it.next(); layoutView();
-      await runGen(it,!fast);
+      const C=await runGen(it,!fast);
+      if(myId!==genId)return;
+      if(!entry&&state.ai&&aiAvailable&&!reduce&&C){
+        statusEl.innerHTML=`<span class="dot"></span>The director considers the colour…`;
+        setAIThinking(true);
+        let dirv=null;
+        try{dirv=await askBasquiatDirector();}
+        catch(e){state.aiError=(e&&e.message)||"unreachable";if(aiHardFail(e))aiAvailable=false;}
+        finally{setAIThinking(false);}
+        if(myId!==genId)return;
+        if(dirv){
+          state.directives=[dirv];
+          state.touchNote=dirv.concept||"";
+          statusEl.innerHTML=`<span class="dot"></span>Reworking the colour — <b>${esc(dirv.concept||"a sharper scheme")}</b>`;
+          const it2=basquiatGenerate(state.seed,state.format,"studio",statusCb,prog,dirv);
+          it2.next();
+          await runGen(it2,false);
+          if(myId!==genId)return;
+        }
+      }
     }else
     if(SC){
       /* the silk wing: when the AI is on, Claude illustrates the
