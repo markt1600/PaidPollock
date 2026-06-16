@@ -167,7 +167,24 @@ function sanitize(e) {
   if (typeof e.story === "string" && e.story.trim()) {
     out.story = e.story.trim().slice(0, 600);
   }
-  if (Array.isArray(e.directives)) {
+  if (mode === "basquiat") {
+    if (Array.isArray(e.directives) && e.directives[0] && typeof e.directives[0] === "object") {
+      const BN = ["red","yellow","blue","green","ochre","teal","gold","oxblood"];
+      const nm = (c, d) => BN.includes(c) ? c : d;
+      const d = e.directives[0];
+      const cl = (x, a, b, dv) => Math.min(b, Math.max(a, Number(x) || dv));
+      const regions = Array.isArray(d.regions) ? d.regions.slice(0, 4).map(r => ({
+        x: cl(r && r.x, 0, .95, 0), y: cl(r && r.y, 0, .95, 0),
+        w: cl(r && r.w, .08, .6, .25), h: cl(r && r.h, .08, .5, .2),
+        color: nm(r && r.color, "blue"), style: (r && r.style) === "pencil" ? "pencil" : "scribble"
+      })) : [];
+      out.directives = [{
+        concept: String(d.concept || "").slice(0, 90),
+        dominant: nm(d.dominant, "red"), accent: nm(d.accent, "blue"),
+        restraint: cl(d.restraint, 0, 1, .6), regions
+      }];
+    }
+  } else if (Array.isArray(e.directives)) {
     const TYPES = mode === "miro"
       ? ["star", "disc", "blob", "moon", "line", "dots"]
       : ["pour", "wash", "web", "splash"];
