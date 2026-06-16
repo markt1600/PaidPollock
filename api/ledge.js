@@ -46,7 +46,8 @@ function sanitize(e) {
   if (!id || !Number.isFinite(seed)) return null;
   const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro"
              : e.mode === "matisse" ? "matisse"
-             : e.mode === "keita" ? "keita" : "pollock";
+             : e.mode === "keita" ? "keita"
+             : e.mode === "basquiat" ? "basquiat" : "pollock";
   if (mode === "scarf") {
     if (!SCARF_PALETTES.includes(e.palette)) return null;
   } else if (mode === "miro") {
@@ -55,6 +56,8 @@ function sanitize(e) {
     if (!FORMATS.includes(e.format) || !SUBJECTS.includes(e.subject)) return null;
   } else if (mode === "keita") {
     if (!FORMATS.includes(e.format) || !KEITA_SCENES.includes(e.subject)) return null;
+  } else if (mode === "basquiat") {
+    if (!FORMATS.includes(e.format)) return null;
   } else {
     if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
   }
@@ -64,7 +67,7 @@ function sanitize(e) {
     dyn: Number.isFinite(dyn) ? Math.min(1, Math.max(0, dyn)) : 0.6,
     title, thumb
   };
-  if (mode !== "matisse" && mode !== "keita") out.palette = e.palette;
+  if (mode !== "matisse" && mode !== "keita" && mode !== "basquiat") out.palette = e.palette;
   if (mode === "scarf") {
     out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
     if (e.design && typeof e.design === "object") {
