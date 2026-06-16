@@ -3584,28 +3584,37 @@ function mline(ctx,raw,w0,opt){
   const u=MAT_U;
   let pts=chaikin(raw.map(p=>[p[0],p[1]]),3);
   if(MAT_MED==="crayon"&&!opt.forcePen){
-    /* crayon in the manner of the late charcoal nudes: the pressure
-       fades along the stroke, the hand lifts and leaves small gaps,
-       long lines end as a whisper */
-    const rc=mResample(pts,Math.max(1.4*u,w0*.28));
+    /* crayon in the manner of the late charcoal nudes: a continuous waxy
+       core that the paper's tooth mottles, the pressure fading along the
+       stroke so a long line ends as a whisper — but the mark stays JOINED;
+       the hand lifts only seldom, a grace note, never a dotted trail */
+    const rc=mResample(pts,Math.max(.85*u,w0*.2));      /* tight: dabs overlap */
     if(!rc.total)return;
     const ga=ctx.globalAlpha;
     ctx.fillStyle=MAT_INK;
     const dip=R(.95,1.25)*(opt.dip||1);
     const drain=clamp(clamp(rc.total/(950*u),.12,1.0)*R(.7,1.3)*(opt.drain||1),.04,2.6);
     const w1=Math.max(2.4*u,w0*1.15)*(opt.press||1);
+    const core=Math.max(1.1*u,w1*.34);                  /* the wax's body  */
     let gapUntil=-1;
     for(let i=0;i<rc.pts.length;i++){
       const a=rc.along[i];
       const ld=Math.max(.12,dip-a*drain);
-      if(a>gapUntil&&rnd()<.018)gapUntil=a+R(.012,.05);   /* the hand lifts */
+      if(a>.06&&a<.9&&a>gapUntil&&rnd()<.006)gapUntil=a+R(.008,.022); /* a rare lift, away from the ends */
       if(a<gapUntil)continue;
-      let press=Math.min(1,.5+ld*.7);
-      if(a<.04)press*=.6+.4*(a/.04);                      /* a soft start  */
-      const k=3+((rnd()*3)|0);
+      let press=Math.min(1,.55+ld*.7);
+      if(a<.05)press*=.55+.45*(a/.05);                  /* a soft start  */
+      if(a>.94)press*=.4+.6*((1-a)/.06);                /* a soft, joined end */
+      const x0=rc.pts[i][0],y0=rc.pts[i][1];
+      /* a faint continuous core so the mark never disconnects — the paper's
+         tooth still breathes through it, but the stroke reads as ONE line */
+      ctx.globalAlpha=ga*Math.min(.5,(.18+.22*ld)*press);
+      stamp(ctx,x0+R(-.18,.18)*w1,y0+R(-.18,.18)*w1,core*R(.78,1.05));
+      /* the dry grain rides on top, drier as the crayon empties */
+      const k=2+((rnd()*3)|0);
       for(let g=0;g<k;g++){
-        ctx.globalAlpha=ga*R(.22,.62)*press;
-        stamp(ctx,rc.pts[i][0]+R(-.55,.55)*w1,rc.pts[i][1]+R(-.55,.55)*w1,w1*R(.12,.3));
+        ctx.globalAlpha=ga*R(.26,.6)*press;
+        stamp(ctx,x0+R(-.5,.5)*w1,y0+R(-.5,.5)*w1,w1*R(.12,.28));
       }
     }
     ctx.globalAlpha=ga;
