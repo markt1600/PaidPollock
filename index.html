@@ -5514,7 +5514,7 @@ const { basquiatGenerate } = (function () {
  * doesn't become a quality-bar landmine the way the Morimoto scenes did.
  * ==========================================================================*/
 
-/* nib scale lives on the IIFE U above */
+/* nib scale U is declared on the IIFE above */
 /* a crayon stroke in a chosen colour: just re-inks the existing engine      */
 function line(ctx, pts, w, color, opt) {
   setMed('crayon', color, U);
@@ -5673,22 +5673,39 @@ function handFill(ctx, x, y, w, h, color, alpha, jitScale) {
 }
 /* fill the CURRENT clip region with a dense colour scribble that reads as a
    hand-coloured solid — NEVER a flat fill */
-function denseScribble(ctx, x, y, w, h, color, alpha) {
+function denseScribble(ctx, x, y, w, h, color, alpha, heavy) {
   ctx.save();
   ctx.globalAlpha = alpha != null ? alpha : 1;
-  const passes = 2 + (R(0,2)|0);
+  /* heavy = build up an opaque, dark, text-occluding mass; still crayon */
+  if (heavy) {                                         /* a deep tone base, crayon laid over it */
+    ctx.save(); ctx.globalAlpha = .62; ctx.fillStyle = color; ctx.fillRect(x, y, w, h); ctx.restore();
+  }
+  const dirs = heavy ? [0, 1, 2, 3, 0, 1] : null;     /* H,V,diag,diag,H,V — denser */
+  const passes = heavy ? dirs.length : 2 + (R(0,2)|0);
+  const tight = heavy ? 1.55 : 2.3, fat = heavy ? R(4,5.6) : R(2.2,3.4);
   for (let p = 0; p < passes; p++) {
-    const horiz = p === 0 ? true : R(0,1) < .5;
-    const span = horiz ? h : w, cross = horiz ? w : h;
-    const rows = Math.max(10, Math.round(span / (2.3*U)));
-    const step = span / rows; let pos = horiz ? y : x; const pts = [];
-    for (let r = 0; r <= rows; r++) {
-      const a = (r%2 ? cross : 0) + J(7), b = (r%2 ? 0 : cross) + J(7);
-      if (horiz) { pts.push([x+a, pos]); pts.push([x+b, pos]); }
-      else { pts.push([pos, y+a]); pts.push([pos, y+b]); }
-      pos += step;
+    const dir = heavy ? dirs[p] : (p === 0 ? 0 : (R(0,1) < .5 ? 0 : 1));
+    if (dir < 2) {                                     /* axis-aligned passes */
+      const horiz = dir === 0;
+      const span = horiz ? h : w, cross = horiz ? w : h;
+      const rows = Math.max(10, Math.round(span / (tight*U)));
+      const step = span / rows; let pos = horiz ? y : x; const pts = [];
+      for (let r = 0; r <= rows; r++) {
+        const a = (r%2 ? cross : 0) + J(7), b = (r%2 ? 0 : cross) + J(7);
+        if (horiz) { pts.push([x+a, pos]); pts.push([x+b, pos]); }
+        else { pts.push([pos, y+a]); pts.push([pos, y+b]); }
+        pos += step;
+      }
+      line(ctx, pts, fat*U, color, {});
+    } else {                                           /* diagonal coverage passes */
+      const down = dir === 2, pts2 = [];
+      for (let o = -h; o < w + h; o += tight*1.3*U) {
+        const x0 = x + o, x1 = x0 + (down ? h : -h);
+        pts2.push([x0 + J(6), y]); pts2.push([x1 + J(6), y + h]);
+        pts2.push([x1 + J(6), y + h]); pts2.push([x0 + J(6), y]);
+      }
+      line(ctx, pts2, fat*U, color, {});
     }
-    line(ctx, pts, R(2.2,3.4)*U, color, {});
   }
   ctx.restore();
 }
@@ -5934,6 +5951,37 @@ const SAYINGS = [
    only if an explicit, clearly-labelled tribute tag is wanted. */
 const USE_SAMO = true;
 
+/* ORIGINAL commentary in his fragmentary, cryptic register (not quoted) —
+   the registers he worked in (power, money, mortality, the crown) turned onto
+   the present: machine intelligence, the cost of living, the gap between rich
+   and poor, hollow politics, a burning world nobody looks at. Kept raw and
+   ambiguous rather than slogan-like, woven in sparingly and often struck out. */
+const COMMENTARY = [
+  /* the machine ascendant */
+  'THE MACHINE LEARNS', 'ARTIFICIAL KING', 'WHO TAUGHT THE MACHINE\u00A9', 'SILICON CROWN',
+  'OBSOLETE MAN', 'THE THINKING ENGINE', 'MAN MADE THE GOD THAT REPLACES MAN', 'AUTOMATA\u00A9',
+  'THE ALGORITHM OWNS THE CROWN',
+  /* the cost of living */
+  'BREAD COSTS MORE', 'PAY MORE GET LESS', 'THE DOLLAR SHRINKS', '100 IS THE NEW 10',
+  'CHEAPER YESTERDAY', 'EVERYTHING COSTS MORE', 'PRICE\u00A9 RISING',
+  /* the gap */
+  'FEW OWN ALL', 'THE GOLD GOES UP', 'KINGS AND PAUPERS', 'THE 1 AND THE 99',
+  'FULL VAULTS EMPTY PLATES', 'WHO HOLDS THE GOLD', 'GOLD FOR THE FEW', 'EMPTY HANDS',
+  /* hollow politics */
+  'THE KINGS LIE', 'EMPTY PROMISE', 'THE THRONE IS HOLLOW', 'NO ONE LEADS',
+  'BROKEN CROWN', 'PROMISES (VOID)', 'RULERS ASLEEP', 'VOTES FOR NOTHING',
+  /* the burning world */
+  'THE LAST TREE', 'NOBODY LOOKS UP', 'THE RIVER DIES', 'SOLD THE SKY',
+  'NO ONE CARES', 'THE EARTH FOR SALE', 'WARMER EVERY YEAR', 'PARADISE (PAVED)', 'ASH FOR AIR',
+];
+/* a few as stacked, declarative inscriptions */
+const COMMENTARY_STACKS = [
+  ['FEW OWN ALL', 'THE REST', 'OWE'],
+  ['THE MACHINE', 'WEARS', 'THE CROWN'],
+  ['NOBODY', 'LOOKS', 'UP'],
+  ['THE KINGS', 'LIE', 'AND SLEEP'],
+];
+
 /* a stacked list of words, some struck through */
 function numberRow(ctx, x, y, h, color) {
   let str=''; const n=3+(R(0,5)|0); for(let i=0;i<n;i++) str+='0123456789'[(R(0,10))|0];
@@ -6119,13 +6167,13 @@ function almondEye(ctx, cx, cy, w, h, tilt) {
   ctx.fillStyle = '#15110d'; ctx.beginPath(); ctx.arc(cx+J(1),cy+J(1),ir*.42,0,6.283); ctx.fill();
 }
 function maskHead(ctx, cx, cy, s) {
-  const w = s, h = s*1.25, dark = pick(['#3a1d18','#5a2a20','#1d1712','#6e2317']);
+  const w = s, h = s*1.25, dark = pick(['#241410','#1a1310','#2a1712','#15110d']);
   const out = [[0,-1],[-.62,-.92],[-.92,-.5],[-.86,.05],[-.6,.55],[-.28,.92],[0,1.04],
                [.28,.92],[.6,.55],[.86,.05],[.92,-.5],[.62,-.92],[0,-1]]
               .map(p => [cx+p[0]*w*.5+J(3), cy+p[1]*h*.5+J(3)]);
   ctx.save();
   ctx.beginPath(); out.forEach((p,i) => i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.clip();
-  denseScribble(ctx, cx-w*.55, cy-h*.62, w*1.1, h*1.26, dark, R(.9,1));
+  denseScribble(ctx, cx-w*.55, cy-h*.62, w*1.1, h*1.26, dark, 1, true);
   ctx.restore();
   line(ctx, out, 2.6*U, '#15110d', {});
   const eyeY = cy - h*.1, ex = w*.26, ew = w*.34, eh = w*.2;
@@ -6148,13 +6196,13 @@ function teethBar(ctx, cx, my, mw, mh, dark) {
 
 /* a SCRIBBLE-FILLED skull — coloured crayon fill, like image 1's central head */
 function scribbleSkull(ctx, cx, cy, s) {
-  const w = s, h = s*1.25, warm = pick(['#d9641f','#c4341e','#cf9a2b','#b5532a']);
+  const w = s, h = s*1.25, warm = pick(['#4a2014','#3a1810','#5a2818','#34160e']);
   const out = [[0,-1],[-.6,-.95],[-.95,-.55],[-.9,0],[-.62,.5],[-.3,.9],[0,1.05],
                [.3,.9],[.62,.5],[.9,0],[.95,-.55],[.6,-.95],[0,-1]]
               .map(p => [cx+p[0]*w*.5+J(4), cy+p[1]*h*.5+J(4)]);
   ctx.save();
   ctx.beginPath(); out.forEach((p,i) => i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.clip();
-  colorScribble(ctx, cx-w*.6, cy-h*.65, w*1.2, h*1.3, warm, .95);
+  denseScribble(ctx, cx-w*.6, cy-h*.65, w*1.2, h*1.3, warm, 1, true);
   ctx.restore();
   line(ctx, out, 2.6*U, '#2a1410', {});
   const eyeY = cy - h*.12, ex = w*.27;
@@ -6170,14 +6218,14 @@ function scribbleSkull(ctx, cx, cy, s) {
 
 /* a SIDE-FACING (profile) skull */
 function maskHeadProfile(ctx, cx, cy, s) {
-  const w = s, h = s*1.28, dir = R(0,1)<.5?1:-1, dark = pick(['#3a1d18','#5a2a20','#1d1712','#6e2317']);
+  const w = s, h = s*1.28, dir = R(0,1)<.5?1:-1, dark = pick(['#241410','#1a1310','#2a1712','#15110d']);
   const P = [
     [-.45,-1.0],[.15,-1.05],[.55,-.78],[.6,-.42],[.5,-.34],[.86,-.12],[.55,-.02],
     [.64,.08],[.5,.16],[.62,.32],[.34,.44],[.08,.52],[-.5,.5],[-.64,.05],[-.56,-.6],[-.45,-1.0]
   ].map(p => [cx + dir*p[0]*w*.5 + J(3), cy + p[1]*h*.5 + J(3)]);
   ctx.save();
   ctx.beginPath(); P.forEach((p,i) => i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.clip();
-  denseScribble(ctx, cx-w*.6, cy-h*.62, w*1.2, h*1.28, dark, R(.9,1));
+  denseScribble(ctx, cx-w*.6, cy-h*.62, w*1.2, h*1.28, dark, 1, true);
   ctx.restore();
   line(ctx, P, 2.6*U, '#15110d', {});
   const ex = cx + dir*w*.2, ey = cy - h*.32;
@@ -6254,8 +6302,9 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
     let xx = R(.002,.05)*W;
     while (xx < W*.985) {
       let txt; const rr = R(0,1);
-      if (rr < .06) txt = pick(FOUND);                              /* a found word, sparingly */
-      else if (rr < .58) txt = phrase(pickWord);
+      if (rr < .06) txt = pick(FOUND);                              /* a found word */
+      else if (rr < .15) txt = pick(COMMENTARY);                    /* contemporary commentary */
+      else if (rr < .60) txt = phrase(pickWord);
       else txt = pickWord() + (R(0,1)<.4 ? '\u00A9' : '');
       const o = {};
       if (R(0,1) < .45) o.angle = J(.16);                 /* a tilt */
@@ -6296,7 +6345,8 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
   /* a few bold declarative labels near the anchor, some boxed/struck/angled */
   for (let i = 0; i < 2 + (R(0,2)|0); i++) {
     const side = R(0,1)<.5?-1:1;
-    const txt = R(0,1)<.5 ? phrase(pickWord) : pickWord();
+    const r = R(0,1);
+    const txt = r<.3 ? pick(COMMENTARY) : r<.65 ? phrase(pickWord) : pickWord();
     const o = { strike: R(0,1)<.35 };
     if (R(0,1) < .35) o.enclose = R(0,1)<.5 ? 'box' : 'oval';
     if (R(0,1) < .4) o.angle = J(.1);
@@ -6334,10 +6384,13 @@ function* basquiatPhase(seed, fmtKey, palKey, statusCb, prog) {
     else asterisk(ctx,x,y,s2*.7,col);
   }
 
-  prog.done++; tick('the inscriptions'); yield;
-  /* ---- a rare famous saying, sparingly, stacked like the canvases ---- */
-  if (R(0,1) < .5) inscription(ctx, pick(SAYINGS), R(.04,.42)*W, R(.5,.85)*H,
+  /* ---- a stacked inscription, sparingly — a classic aphorism or a
+         contemporary statement, like the canvases ---- */
+  if (R(0,1) < .6) {
+    const lines = R(0,1) < .5 ? pick(SAYINGS) : pick(COMMENTARY_STACKS);
+    inscription(ctx, lines, R(.04,.42)*W, R(.5,.85)*H,
        R(.026,.04)*S, pick([mk, mk, ACCENT[0]]), { strike: R(0,1)<.35, angle: J(.06), underline: R(0,1)<.45 });
+  }
   if (USE_SAMO && R(0,1) < .4) word(ctx, 'SAMO\u00A9', R(.05,.6)*W, R(.08,.32)*H, R(.03,.045)*S, mk, { angle: J(.08) });
 
   /* ---- a few drips ---- */
@@ -7755,13 +7808,13 @@ function buildChips(){
     ["pollock","Jackson Pollock","enamel pours on canvas"],
     ["miro","Joan Miró","dream paintings in oil"],
     ["matisse","Henri Matisse","line drawings in ink"]
+    ,["basquiat","Jean-Michel Basquiat","oilstick & crayon on paper"]
     /* the nocturne wing is dormant — engine, ledge support and scene
        chooser remain intact; uncomment to rehang it:
        ,["keita","Keita-ish","Tokyo nocturnes in oil"] */
     /* the silk wing is dormant: its engine, AI illustrator, framing and
        ledge support remain intact — uncomment to restore it:
     ,["scarf","Hermès Scarves","embroidered silk carrés"] */
-    ,["basquiat","Jean-Michel Basquiat","oilstick & crayon on paper"]
   ];
   for(const [k,label,sub] of colls){
     const b=document.createElement("button");
