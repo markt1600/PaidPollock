@@ -5,250 +5,111 @@
  * the env vars below appear automatically. No npm dependencies.
  *
  *   GET  /api/ledge            -> [entry, ...]  (newest first, max 5)
- *   POST /api/ledge {entry}    -> merged list   (server-side merge)
+ *   POST /api/ledge {entry}    -> merged list   (atomic server-side merge)
  *   POST /api/ledge {id,title} -> list with that piece renamed
+ *
+ * Writes run as Lua scripts (EVAL) so the read-merge-write is atomic —
+ * two visitors finishing pours in the same instant can no longer clobber
+ * each other's entry. Every caller is rate-limited per IP.
  *
  * Without a configured store the endpoint answers 503 and the front end
  * falls back gracefully to localStorage.
  */
+const { kv, kvConfigured, rateLimit } = require("./_lib/shared.js");
+const { sanitize } = require("./_lib/sanitize.js");
+
 const KEY = "drip-atelier-ledge-v2";
-const FORMATS = ["square", "classic", "pano", "portrait"];
-const PALETTES = ["convergence", "number31", "lavender", "bluepoles", "onyx"];
-const SCARF_PALETTES = ["flamme", "marine", "emeraude", "noir", "poudre"];
-const MOTIFS = ["chaine", "cavalcade", "jardin"];
-const MIRO_PALETTES = ["reve", "constellation", "bleu", "nocturne", "terre"];
-const SUBJECTS = ["visage", "fleurs"];
-const KEITA_SCENES = ["jihanki", "denwa", "konbini"];
+const MAX_ENTRIES = 5;
 
-function env(name, alt) {
-  return process.env[name] || process.env[alt] || "";
-}
-async function kv(cmd) {
-  const url = env("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL");
-  const tok = env("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN");
-  const r = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
-    body: JSON.stringify(cmd)
-  });
-  if (!r.ok) throw new Error("kv " + r.status);
-  return (await r.json()).result;
-}
+/* Prepend the new entry, drop any older entry with the same id, trim to
+ * MAX_ENTRIES — all inside Redis, atomically. */
+const SAVE_SCRIPT = `
+local list = {}
+local raw = redis.call('GET', KEYS[1])
+if raw then
+  local ok, v = pcall(cjson.decode, raw)
+  if ok and type(v) == 'table' then list = v end
+end
+local entry = cjson.decode(ARGV[1])
+local out = { entry }
+for i = 1, #list do
+  local e = list[i]
+  if type(e) == 'table' and e.id ~= entry.id and #out < tonumber(ARGV[2]) then
+    out[#out + 1] = e
+  end
+end
+local enc = cjson.encode(out)
+redis.call('SET', KEYS[1], enc)
+return enc
+`;
 
-function sanitize(e) {
-  if (!e || typeof e !== "object") return null;
-  const id = String(e.id || "").slice(0, 64);
-  const seed = Number(e.seed);
-  const dyn = Number(e.dyn);
-  let title = String(e.title || "Untitled").trim().slice(0, 48) || "Untitled";
-  let thumb = typeof e.thumb === "string" && e.thumb.startsWith("data:image/") ? e.thumb : "";
-  if (thumb.length > 150000) thumb = "";
-  if (!id || !Number.isFinite(seed)) return null;
-  const mode = e.mode === "scarf" ? "scarf" : e.mode === "miro" ? "miro"
-             : e.mode === "matisse" ? "matisse"
-             : e.mode === "keita" ? "keita"
-             : e.mode === "basquiat" ? "basquiat" : "pollock";
-  if (mode === "scarf") {
-    if (!SCARF_PALETTES.includes(e.palette)) return null;
-  } else if (mode === "miro") {
-    if (!FORMATS.includes(e.format) || !MIRO_PALETTES.includes(e.palette)) return null;
-  } else if (mode === "matisse") {
-    if (!FORMATS.includes(e.format) || !SUBJECTS.includes(e.subject)) return null;
-  } else if (mode === "keita") {
-    if (!FORMATS.includes(e.format) || !KEITA_SCENES.includes(e.subject)) return null;
-  } else if (mode === "basquiat") {
-    if (!FORMATS.includes(e.format)) return null;
-  } else {
-    if (!FORMATS.includes(e.format) || !PALETTES.includes(e.palette)) return null;
-  }
-  const out = {
-    id, seed, mode,
-    format: mode === "scarf" ? "square" : e.format,
-    dyn: Number.isFinite(dyn) ? Math.min(1, Math.max(0, dyn)) : 0.6,
-    title, thumb
-  };
-  if (mode !== "matisse" && mode !== "keita" && mode !== "basquiat") out.palette = e.palette;
-  if (mode === "scarf") {
-    out.motif = MOTIFS.includes(e.motif) ? e.motif : "chaine";
-    if (e.design && typeof e.design === "object") {
-      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
-      const dOut = {
-        subject: String(e.design.subject || "").slice(0, 48),
-        mirror: !!e.design.mirror
-      };
-      if (e.design.composition === "garden" || e.design.composition === "medallion")
-        dOut.composition = e.design.composition;
-      if (e.design.density !== undefined) dOut.density = cl(e.design.density, 0, 1);
-      if (Array.isArray(e.design.accents)) {
-        const acc = e.design.accents.slice(0, 4)
-          .filter(x => x && typeof x === "object")
-          .map(x => ({ x: cl(x.x, .05, .95), y: cl(x.y, .05, .95), r: cl(x.r, .05, .25) }));
-        if (acc.length) dOut.accents = acc;
-      }
-      const readGroup = (arr, cap) => {
-      const strokes = [];
-      for (const st of (Array.isArray(arr) ? arr : []).slice(0, cap)) {
-        if (!st || typeof st !== "object") continue;
-        const c = Math.min(3, Math.max(0, st.c | 0));
-        const w = cl(st.w, 1, 3);
-        if (st.t === "line" && Array.isArray(st.pts)) {
-          const pts = st.pts.slice(0, 32)
-            .filter(p => Array.isArray(p) && p.length >= 2)
-            .map(p => [cl(p[0], -1, 1), cl(p[1], -1, 1)]);
-          if (pts.length > 1) strokes.push({ t: "line", c, w, pts });
-        } else if (st.t === "arc") {
-          strokes.push({ t: "arc", c, w, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
-            rx: cl(st.rx, .01, 1), ry: cl(st.ry, .01, 1),
-            a0: cl(st.a0, -360, 360), a1: cl(st.a1, -360, 360), rot: cl(st.rot, -360, 360) });
-        } else if (st.t === "satin") {
-          strokes.push({ t: "satin", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
-            ang: cl(st.ang, -360, 360), len: cl(st.len, .02, .7), wid: cl(st.wid, .01, .4) });
-        } else if (st.t === "knot") {
-          strokes.push({ t: "knot", c, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .08) });
-        }
-      }
-      return strokes;
-      };
-      const strokes = readGroup(e.design.strokes, 140);
-      const sat = readGroup(e.design.satellite, 36);
-      if (strokes.length) dOut.strokes = strokes;
-      if (sat.length) dOut.satellite = sat;
-      if (dOut.strokes || dOut.composition || dOut.accents || dOut.satellite) out.design = dOut;
-    }
-  }
-  if (mode === "keita") out.subject = e.subject;
-  if (mode === "matisse") {
-    out.subject = e.subject;
-    if (e.design && typeof e.design === "object") {
-      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
-      const dOut = {
-        subject: String(e.design.subject || "").slice(0, 48),
-        mirror: !!e.design.mirror
-      };
-      const strokes = [];
-      for (const st of (Array.isArray(e.design.strokes) ? e.design.strokes : []).slice(0, 48)) {
-        if (!st || typeof st !== "object") continue;
-        const w = cl(st.w, 1, 3);
-        if (st.t === "line" && Array.isArray(st.pts)) {
-          const pts = st.pts.slice(0, 32)
-            .filter(p => Array.isArray(p) && p.length >= 2)
-            .map(p => [cl(p[0], -1, 1), cl(p[1], -1, 1)]);
-          if (pts.length > 1) strokes.push({ t: "line", c: 0, w, pts });
-        } else if (st.t === "arc") {
-          strokes.push({ t: "arc", c: 0, w, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
-            rx: cl(st.rx, .01, 1), ry: cl(st.ry, .01, 1),
-            a0: cl(st.a0, -360, 360), a1: cl(st.a1, -360, 360), rot: cl(st.rot, -360, 360) });
-        } else if (st.t === "satin") {
-          strokes.push({ t: "satin", c: 0, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1),
-            ang: cl(st.ang, -360, 360), len: cl(st.len, .02, .5), wid: cl(st.wid, .01, .3) });
-        } else if (st.t === "knot") {
-          strokes.push({ t: "knot", c: 0, x: cl(st.x, -1, 1), y: cl(st.y, -1, 1), r: cl(st.r, .005, .06) });
-        }
-      }
-      if (strokes.length) { dOut.strokes = strokes; out.design = dOut; }
-    }
-    if (Array.isArray(e.touches)) {
-      const cl = (x, a, b) => Math.min(b, Math.max(a, Number(x) || 0));
-      const seen = {}, touches = [];
-      for (const t of e.touches.slice(0, 16)) {
-        if (!t || typeof t !== "object") continue;
-        const i = t.i | 0;
-        if (i < 0 || i > 63 || seen[i]) continue;
-        seen[i] = 1;
-        const o = { i };
-        if (t.press !== undefined) o.press = cl(t.press, .6, 1.5);
-        if (t.dip !== undefined) o.dip = cl(t.dip, .5, 1.6);
-        if (t.drain !== undefined) o.drain = cl(t.drain, .3, 2.4);
-        if (o.press !== undefined || o.dip !== undefined || o.drain !== undefined) touches.push(o);
-      }
-      if (touches.length) out.touches = touches;
-    }
-  }
-  if (typeof e.story === "string" && e.story.trim()) {
-    out.story = e.story.trim().slice(0, 600);
-  }
-  if (mode === "basquiat") {
-    if (Array.isArray(e.directives) && e.directives[0] && typeof e.directives[0] === "object") {
-      const BN = ["red","yellow","blue","green","ochre","teal","gold","oxblood"];
-      const nm = (c, d) => BN.includes(c) ? c : d;
-      const d = e.directives[0];
-      const cl = (x, a, b, dv) => Math.min(b, Math.max(a, Number(x) || dv));
-      const regions = Array.isArray(d.regions) ? d.regions.slice(0, 4).map(r => ({
-        x: cl(r && r.x, 0, .95, 0), y: cl(r && r.y, 0, .95, 0),
-        w: cl(r && r.w, .08, .6, .25), h: cl(r && r.h, .08, .5, .2),
-        color: nm(r && r.color, "blue"), style: (r && r.style) === "pencil" ? "pencil" : "scribble"
-      })) : [];
-      out.directives = [{
-        concept: String(d.concept || "").slice(0, 90),
-        dominant: nm(d.dominant, "red"), accent: nm(d.accent, "blue"),
-        restraint: cl(d.restraint, 0, 1, .6), regions
-      }];
-    }
-  } else if (Array.isArray(e.directives)) {
-    const TYPES = mode === "miro"
-      ? ["star", "disc", "blob", "moon", "line", "dots"]
-      : ["pour", "wash", "web", "splash"];
-    const COLORS = ["red", "blue", "yellow", "green", "black", "white"];
-    const dirs = e.directives.slice(0, 3).map(round =>
-      Array.isArray(round)
-        ? round.slice(0, 6).map(a => {
-            const act = {
-              type: TYPES.includes(a && a.type) ? a.type : TYPES[0],
-              layer: Math.min(31, Math.max(0, (a && a.layer) | 0)),
-              x: Math.min(1, Math.max(0, Number(a && a.x) || 0.5)),
-              y: Math.min(1, Math.max(0, Number(a && a.y) || 0.5)),
-              r: Math.min(0.6, Math.max(0.015, Number(a && a.r) || 0.2))
-            };
-            if (mode === "miro")
-              act.color = COLORS.includes(a && a.color) ? a.color : "black";
-            return act;
-          })
-        : []
-    ).filter(r => r.length);
-    if (dirs.length) out.directives = dirs;
-  }
-  return out;
+/* Retitle one entry in place, atomically; write back only if it changed. */
+const RENAME_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return '[]' end
+local ok, list = pcall(cjson.decode, raw)
+if not ok or type(list) ~= 'table' then return '[]' end
+local changed = false
+for i = 1, #list do
+  local e = list[i]
+  if type(e) == 'table' and e.id == ARGV[1] then
+    e.title = ARGV[2]
+    changed = true
+  end
+end
+if changed then
+  redis.call('SET', KEYS[1], cjson.encode(list))
+end
+return cjson.encode(list)
+`;
+
+/* cjson encodes an empty Lua table as {}, so always guard the parse. */
+function asList(raw) {
+  let list = [];
+  try { list = raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
+  return Array.isArray(list) ? list.slice(0, MAX_ENTRIES) : [];
 }
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   try {
-    const configured =
-      env("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL") &&
-      env("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN");
-    if (!configured) {
+    if (!kvConfigured()) {
       return res.status(503).json({ error: "ledge storage not configured" });
     }
 
     if (req.method === "GET") {
+      /* the front end polls every 30 s; 60/min leaves lots of headroom */
+      if (!(await rateLimit(req, res, "ledge-get", 60, 60))) return;
       const raw = await kv(["GET", KEY]);
-      let list = [];
-      try { list = raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
-      return res.status(200).json(Array.isArray(list) ? list.slice(0, 5) : []);
+      return res.status(200).json(asList(raw));
     }
 
     if (req.method === "POST") {
+      if (!(await rateLimit(req, res, "ledge-post", 10, 60))) return;
       const body = req.body && typeof req.body === "object" ? req.body : {};
-      const raw = await kv(["GET", KEY]);
-      let list = [];
-      try { list = raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
-      if (!Array.isArray(list)) list = [];
 
       if (body.entry) {
         const e = sanitize(body.entry);
         if (!e) return res.status(400).json({ error: "bad entry" });
-        list = [e, ...list.filter(x => x && x.id !== e.id)].slice(0, 5);
-      } else if (body.id && typeof body.title === "string") {
-        const id = String(body.id).slice(0, 64);
-        const t = body.title.trim().slice(0, 48);
-        const hit = list.find(x => x && x.id === id);
-        if (hit && t) hit.title = t;
-      } else {
-        return res.status(400).json({ error: "bad request" });
+        const raw = await kv([
+          "EVAL", SAVE_SCRIPT, "1", KEY,
+          JSON.stringify(e), String(MAX_ENTRIES)
+        ]);
+        return res.status(200).json(asList(raw));
       }
 
-      await kv(["SET", KEY, JSON.stringify(list)]);
-      return res.status(200).json(list);
+      if (body.id && typeof body.title === "string") {
+        const id = String(body.id).slice(0, 64);
+        const t = body.title.trim().slice(0, 48);
+        if (!t) {
+          const raw = await kv(["GET", KEY]);
+          return res.status(200).json(asList(raw));
+        }
+        const raw = await kv(["EVAL", RENAME_SCRIPT, "1", KEY, id, t]);
+        return res.status(200).json(asList(raw));
+      }
+
+      return res.status(400).json({ error: "bad request" });
     }
 
     res.setHeader("Allow", "GET, POST");

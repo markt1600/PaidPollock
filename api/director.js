@@ -12,8 +12,9 @@
  */
 /* Model fallback: Anthropic retires model IDs over time; a retired ID
  * answers 404. Try newest-first so the proxy keeps working as the
- * platform moves. */
+ * platform moves. ANTHROPIC_MODEL, when set, is tried before the list. */
 const MODELS = ["claude-sonnet-4-6", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514"];
+const { rateLimit } = require("./_lib/shared.js");
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -25,6 +26,10 @@ module.exports = async (req, res) => {
       res.setHeader("Allow", "POST");
       return res.status(405).json({ error: "method not allowed" });
     }
+
+    /* each AI-directed pour costs 2-4 calls; 12 per 5 min per IP allows a
+     * few pours while stopping a scripted client from draining the key */
+    if (!(await rateLimit(req, res, "director", 12, 300))) return;
 
     /* same-origin deterrent (browsers send Origin; absent for server calls) */
     const origin = req.headers.origin || "";
@@ -61,8 +66,11 @@ module.exports = async (req, res) => {
     if (!txt) return res.status(400).json({ error: "bad request" });
 
     const maxTokens = Math.min(5000, Math.max(1, (body.max_tokens | 0) || 300));
+    const models = process.env.ANTHROPIC_MODEL
+      ? [process.env.ANTHROPIC_MODEL, ...MODELS]
+      : MODELS;
     let upstream = null;
-    for (const model of MODELS) {
+    for (const model of models) {
       upstream = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
