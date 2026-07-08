@@ -1,8 +1,49 @@
 # The Atelier
 
-A generative studio in three wings — Jackson Pollock drip paintings,
-Joan Miró dream paintings, and Henri Matisse line drawings. Pure static
-HTML/JS — no build step, no dependencies, ready for Vercel.
+A generative studio in four wings — Jackson Pollock drip paintings,
+Joan Miró dream paintings, Henri Matisse line drawings, and Jean-Michel
+Basquiat oilstick works. Pure static HTML/CSS/JS — no build step, no
+runtime dependencies, ready for Vercel.
+
+## Project layout
+
+```
+index.html          the page: markup only, 98 lines
+css/atelier.css     the stylesheet
+js/                 the engine, split into classic scripts loaded in order:
+                    core, ground, marks, varnish — the shared paint engine
+                    pollock, scarf, miro, matisse, keita, basquiat — one per wing
+                    ai-director, display, export, controls — direction, UI, export
+api/ledge.js        communal ledge (Vercel serverless, Upstash Redis)
+api/director.js     AI proxy for the art director & curator
+api/_lib/           shared helpers + the ledge entry sanitiser
+tests/unit/         node:test suites for the API functions
+tests/golden/       Playwright golden-image tests for the engine
+scripts/            build-artifact.mjs — single-file bundle for artifact hosts
+```
+
+The scripts share one global scope, exactly as the code ran when it was
+a single file — there is still no build step and nothing to install for
+deployment. For hosts that want one self-contained document (e.g.
+running as a claude.ai artifact), `npm run build:artifact` re-inlines
+everything into `dist/artifact.html`.
+
+## Tests
+
+```bash
+npm install            # dev-only: @playwright/test
+npm run test:unit      # API functions: sanitiser, atomic merge, rate limits
+npm run test:golden    # golden-image regression tests (Chromium)
+```
+
+The golden tests rehang one pinned recipe per wing through the real
+engine and compare the canvas against a committed PNG, so an engine
+change that would silently alter how existing ledge recipes rehang
+fails the suite; a determinism spec renders the same recipe twice and
+requires byte-identical pixels. After an *intended* engine change,
+regenerate the goldens with `npx playwright test --update-snapshots`.
+If your environment ships its own Chromium, point `CHROMIUM_PATH` at it
+to skip the browser download.
 
 ## Features
 - **Physically simulated pours** — the engine models the artist's hand moving
@@ -110,9 +151,10 @@ HTML/JS — no build step, no dependencies, ready for Vercel.
 
 The endpoint sanitises every write (whitelisted formats/palettes, numeric
 seed, 48-char titles, image-only thumbnails capped at 150 KB) and the
-ledge itself is capped at five entries server-side.
-  No server needed; cross-device storage would require Vercel KV/Blob + an API
-  route.
+ledge itself is capped at five entries server-side. Writes run as Redis
+Lua scripts, so the merge is atomic — two visitors finishing pours in
+the same instant can't clobber each other — and every caller is
+rate-limited per IP (60 reads and 10 writes per minute).
 - **Naming** — click the title on the museum placard to rename a piece; the
   name follows it onto the ledge and into the download filename.
 - Five enamel palettes inspired by the classic canon. Each work gets a museum
@@ -120,7 +162,7 @@ ledge itself is capped at five entries server-side.
 
 ## The dream wing — Joan Miró
 
-The third collection paints in Miró's dream language: biomorphic blobs,
+The second wing paints in Miró's dream language: biomorphic blobs,
 filled-lens eyes, asterisk stars, crescents, ladders of escape, birds,
 pennants, half-divided discs, french-dot trails and thin calligraphic
 lines that wander between forms — in oil, on washed and scumbled grounds
@@ -157,7 +199,7 @@ the figures.
 
 ## The drawing wing — Henri Matisse
 
-The third collection draws: line drawings in the school of Matisse, where
+The third wing draws: line drawings in the school of Matisse, where
 the whole subject is carried by a handful of long, confident strokes on
 warm wove paper. There is no palette — in its place a **Subject** chooser:
 
@@ -212,12 +254,35 @@ the recipe, so AI-touched sheets rehang pixel-identically with no API
 call, and the curator labels the finished sheet in the voice of a
 curator of modern French drawing.
 
+## The paper wing — Jean-Michel Basquiat
+
+The fourth wing works in oilstick and crayon on paper: a library of
+symbol primitives (crowns, mask heads, arrows, ladders, bones, stick
+figures, egg rows), a crayon line pass drawn with the Matisse wing's
+dry-oilstick engine, flat hand-coloured fields, and a dense
+wall-to-wall field of hand-lettered text — declarative labels, ©'s,
+boxed and struck-through words, and rows of illegible scrawl. Every
+letterform is stroke geometry drawn by the house, never a font. The
+grounds are disciplined, dirtied primaries (cobalt, oxblood,
+near-black, viridian, ochre, raw bone), with mark colour chosen by
+ground luminance so the line always reads.
+
+The head is a **locked house grammar** — a fixed parametric function
+with a few seeded toggles, in the same spirit as the Matisse masks:
+geometry for the face never comes from the AI. With the AI on, the
+director only ever sets the colour scheme and the hand-coloured
+background fields, picking from named house colours (never raw hex);
+it never touches the mask, the geometry or the words. Basquiat works
+take every canvas format, live on the communal ledge
+(server-sanitised, colour scheme and regions included), and the
+curator labels them like everything else.
+
 ## A dormant wing — the Keita-ish Tokyo nocturnes (disabled)
 
 The nocturne wing is fully built but currently unlisted. Its engine,
 scene chooser, ledge support and curator voice all remain in the code —
 to rehang it, uncomment the single chip line marked "the nocturne wing
-is dormant" in `buildChips()` in `index.html`.
+is dormant" in `buildChips()` in `js/controls.js`.
 
 *Keita-ish* paints the city after the last train: one glowing protagonist
 against a teal-green dark, in the spirit of the contemporary Tokyo
@@ -255,7 +320,7 @@ chooser, but its entire implementation remains in the codebase — the
 embroidery engine, colourways, motifs, the AI illustrator, the silk
 liner and framing, and the ledge's server-side support all stay intact
 and tested. To restore it, uncomment the single `["scarf", …]` line in
-the `colls` array inside `buildChips()` in `index.html`. The
+the `colls` array inside `buildChips()` in `js/controls.js`. The
 documentation below describes the wing as built.
 
 When enabled it commissions square silk twill carrés, 90 × 90 cm, in the
@@ -389,10 +454,13 @@ The front end reaches Claude two ways and remembers whichever works:
    project's environment variables and redeploy. That's all.
 
 The proxy is public, so it's locked to the atelier's exact call shape:
-one JPEG snapshot plus one short text prompt, tokens capped at 800, the
-model pinned server-side, and a same-origin check — it can't be
-repurposed as a general Claude proxy. Each AI-directed pour costs roughly
-2–4 vision calls (up to three director rounds plus the label).
+one JPEG snapshot plus one short text prompt, tokens capped at 5,000
+(the silk designer's briefs run long; everything else asks for far
+less), the model pinned server-side (override with the
+`ANTHROPIC_MODEL` env var), a same-origin check, and a per-IP rate
+limit of 12 calls per 5 minutes — it can't be repurposed as a general
+Claude proxy. Each AI-directed pour costs roughly 2–4 vision calls (up
+to three director rounds plus the label).
 
 If neither route works (no key configured, offline, plain static host),
 the first failed call quietly disables AI for the session and pours
@@ -410,10 +478,11 @@ Any of these:
    vercel --prod
    ```
 
-That's it — `index.html` is the whole app.
+That's it — the static files are the whole app; the two functions in
+`api/` deploy alongside them automatically.
 
 ## Local preview
 ```bash
-npx serve .
-# or just open index.html in a browser
+npm run serve      # dependency-free static server on :4173
+# or: npx serve .
 ```
