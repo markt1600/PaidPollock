@@ -1,0 +1,319 @@
+:root{
+  --ink:#181410;
+  --ink-2:#221c15;
+  --ink-3:#2e261d;
+  --ivory:#ede6d6;
+  --ivory-dim:#b9b0a0;
+  --cadmium:#b8341b;
+  --cadmium-hi:#d8472a;
+  --wall:#b3aa9b;
+  --wall-deep:#8e8678;
+  --placard:#f3eee2;
+  --placard-ink:#2a251d;
+  --hairline:rgba(237,230,214,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Karla',system-ui,sans-serif;
+  background:var(--ink);
+  color:var(--ivory);
+  display:grid;
+  grid-template-columns:330px 1fr;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:hidden;
+}
+aside,main{min-width:0;max-width:100%}
+/* ---------- control rail ---------- */
+aside{
+  background:linear-gradient(175deg,var(--ink-2),var(--ink) 60%);
+  border-right:1px solid var(--hairline);
+  padding:34px 28px 28px;
+  display:flex;flex-direction:column;gap:26px;
+  overflow-y:auto;
+}
+.brand h1{
+  font-family:'Marcellus',serif;
+  font-weight:400;
+  font-size:27px;
+  letter-spacing:.02em;
+  line-height:1.15;
+}
+.brand h1 em{font-style:normal;color:var(--cadmium-hi)}
+.brand p{
+  margin-top:8px;color:var(--ivory-dim);
+  font-size:13px;line-height:1.5;font-weight:300;
+}
+.field{display:flex;flex-direction:column;gap:10px}
+.field[hidden]{display:none}
+.field>label{
+  font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ivory-dim);font-weight:600;
+}
+.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.chips.wide{grid-template-columns:minmax(0,1fr)}
+button.chip{
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-family:'Karla',sans-serif;
+  background:var(--ink-3);
+  color:var(--ivory);
+  border:1px solid transparent;
+  border-radius:3px;
+  padding:10px 12px;
+  font-size:13.5px;
+  text-align:left;
+  cursor:pointer;
+  display:flex;align-items:center;gap:9px;
+  transition:border-color .15s,background .15s;
+}
+button.chip:hover{background:#383023}
+button.chip[aria-pressed="true"]{
+  border-color:var(--cadmium-hi);
+  background:#33231a;
+}
+button.chip:focus-visible{outline:2px solid var(--cadmium-hi);outline-offset:2px}
+.chip .sw{display:flex;gap:3px;flex:none}
+.chip .sw i{width:9px;height:9px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.35)}
+.chip small{display:block;color:var(--ivory-dim);font-size:11px;margin-top:1px;font-weight:300}
+.chip .fr{
+  width:22px;height:17px;flex:none;border-radius:2px;
+  background:#d9d2c1;
+}
+.fr.f-none{box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+.fr.f-black{border:4px solid #14110c}
+.fr.f-white{border:4px solid #f6f2e8;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.fr.f-oak{border:4px solid #a8854f}
+.fr.f-gold{border:4px solid #c9a242}
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+button.primary,button.ghost{
+  font-family:'Karla',sans-serif;
+  border-radius:3px;padding:13px 16px;font-size:14px;font-weight:600;
+  letter-spacing:.04em;cursor:pointer;border:1px solid transparent;
+  transition:background .15s,transform .05s;
+}
+button.primary{background:var(--cadmium);color:#fcf6ea}
+button.primary:hover{background:var(--cadmium-hi)}
+button.primary:active{transform:translateY(1px)}
+button.ghost{background:transparent;border-color:var(--hairline);color:var(--ivory)}
+button.ghost:hover{border-color:var(--ivory-dim)}
+button.ghost:disabled{opacity:.4;cursor:default}
+button.primary:focus-visible,button.ghost:focus-visible{outline:2px solid var(--ivory);outline-offset:2px}
+.status{
+  font-size:12px;color:var(--ivory-dim);min-height:34px;line-height:1.45;
+  border-top:1px solid var(--hairline);padding-top:14px;
+}
+.status b{color:var(--ivory);font-weight:600}
+.dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--cadmium-hi);margin-right:7px;
+  animation:pulse 1.1s ease-in-out infinite;
+  vertical-align:1px;
+}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+.fineprint{font-size:11px;color:#6e655a;line-height:1.5;margin-top:auto}
+/* ---------- gallery wall ---------- */
+main{
+  position:relative;
+  flex-direction:column;
+  background:
+    radial-gradient(58% 46% at 50% -6%, rgba(255,248,228,.5), rgba(255,248,228,0) 72%),
+    radial-gradient(30% 26% at 26% -6%, rgba(255,246,224,.32), rgba(255,246,224,0) 75%),
+    radial-gradient(30% 26% at 74% -6%, rgba(255,246,224,.32), rgba(255,246,224,0) 75%),
+    radial-gradient(150% 120% at 50% 50%, var(--wall) 30%, var(--wall-deep) 100%);
+  display:flex;align-items:center;justify-content:center;
+  perspective:1500px;
+  padding:42px 56px 172px;   /* room for the ledge below the story card */
+  overflow:hidden auto;       /* a tall hang scrolls; nothing slides under the rail */
+}
+.hang{margin:auto 0}          /* keeps centring while allowing scroll overflow */
+main::after{ /* faint floor line */
+  content:"";position:absolute;left:0;right:0;bottom:0;height:7%;
+  background:linear-gradient(to bottom, rgba(40,32,22,0), rgba(40,32,22,.28));
+  pointer-events:none;
+}
+.hang{display:flex;flex-direction:column;align-items:center;gap:26px;max-width:100%;position:relative}
+.hang>*{flex-shrink:0} /* a long label must never crush into the placard */
+.hang::before{ /* the spot pools on the wall behind the piece */
+  content:"";position:absolute;z-index:0;pointer-events:none;
+  inset:-14% -18% 30% -18%;
+  background:radial-gradient(60% 55% at 50% 28%, rgba(255,250,234,.22), rgba(255,250,234,0) 72%);
+}
+.framewrap{
+  position:relative;z-index:1;
+  transform:rotateX(1.7deg);
+  transform-origin:50% 0%;
+  box-shadow:
+    0 2px 4px rgba(25,18,8,.32),                 /* contact, near the wall */
+    0 16px 26px -10px rgba(25,18,8,.42),
+    0 46px 85px -18px rgba(25,18,8,.58);         /* thrown down the wall  */
+  background:#0c0a07;
+  transition:padding .2s;
+  line-height:0;
+}
+.framewrap::before{ /* a warm halo that breathes while Claude is thinking */
+  content:"";position:absolute;inset:-11px;z-index:0;pointer-events:none;
+  border-radius:4px;
+  box-shadow:0 0 0 3px rgba(222,174,92,.7), 0 0 52px 14px rgba(222,174,92,.5),
+             0 0 110px 30px rgba(222,174,92,.22);
+  opacity:0;
+  transition:opacity .5s ease;
+}
+.framewrap.ai-thinking::before{
+  opacity:1;
+  animation:aiPulse 2s ease-in-out infinite;
+}
+@keyframes aiPulse{0%,100%{opacity:.4}50%{opacity:1}}
+@property --aiA{syntax:'<angle>';inherits:false;initial-value:0deg;}
+.ai-sparkle{ /* a glint orbiting the frame, with twinkles at its corners */
+  position:absolute;inset:-12px;border-radius:5px;pointer-events:none;
+  opacity:0;transition:opacity .5s ease;z-index:6;
+}
+.framewrap.ai-thinking .ai-sparkle{opacity:1}
+.ai-sparkle::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:3px;
+  background:conic-gradient(from var(--aiA),
+    transparent 0 8%, rgba(255,236,180,.95) 12%, rgba(255,214,130,.5) 15%, transparent 20%,
+    transparent 46%, rgba(255,236,180,.65) 51%, transparent 57%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+          mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          mask-composite:exclude;
+  animation:aiOrbit 3s linear infinite;
+}
+@keyframes aiOrbit{to{--aiA:360deg}}
+.ai-sparkle::after{
+  content:"";position:absolute;inset:-4px;pointer-events:none;
+  background:
+    radial-gradient(circle 5px at 0% 0%, rgba(255,240,200,.95), transparent 70%),
+    radial-gradient(circle 4px at 100% 0%, rgba(255,240,200,.9), transparent 70%),
+    radial-gradient(circle 5px at 100% 100%, rgba(255,240,200,.95), transparent 70%),
+    radial-gradient(circle 4px at 0% 100%, rgba(255,240,200,.9), transparent 70%),
+    radial-gradient(circle 3px at 50% 0%, rgba(255,240,200,.8), transparent 70%),
+    radial-gradient(circle 3px at 50% 100%, rgba(255,240,200,.8), transparent 70%);
+  animation:aiTwinkle 1.6s ease-in-out infinite;
+}
+@keyframes aiTwinkle{0%,100%{opacity:.2}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){
+  .framewrap.ai-thinking::before{animation:none;opacity:.75}
+  .ai-sparkle::before{animation:none}
+  .ai-sparkle::after{animation:none;opacity:.6}
+}
+.framewrap::after{ /* the room's light falls from above */
+  content:"";position:absolute;inset:0;z-index:3;pointer-events:none;
+  background:linear-gradient(to bottom,
+    rgba(255,250,232,.075),
+    rgba(255,250,232,0) 24%,
+    rgba(20,14,6,0) 68%,
+    rgba(20,14,6,.10));
+}
+.framewrap .liner{background:#eee8d8;transition:padding .2s;line-height:0}
+.framewrap.silkliner .liner{background:linear-gradient(135deg,#f6f1e5 0%,#efe9da 45%,#f7f2e7 100%)}
+.framewrap.matliner .liner{background:#f7f3e8}
+.framewrap.matliner:not(.f-none) .liner{padding:clamp(14px,2.2vw,34px)}
+canvas#view{display:block;background:#e7e0cd}
+/* frame styles (preview) */
+.framewrap.f-none{padding:0;background:transparent}
+.framewrap.f-none .liner{padding:0;background:transparent}
+.framewrap.f-black{padding:clamp(10px,1.4vw,22px);background:linear-gradient(160deg,#272217,#0f0c08 55%,#1c1810)}
+.framewrap.f-white{padding:clamp(10px,1.4vw,22px);background:linear-gradient(160deg,#fbf8f0,#ddd7c8 60%,#efeadd)}
+.framewrap.f-oak{padding:clamp(10px,1.5vw,24px);background:linear-gradient(160deg,#b5905c,#8d6c40 55%,#a8854f)}
+.framewrap.f-gold{padding:clamp(12px,1.7vw,28px);background:linear-gradient(160deg,#7a5a18,#e7c75f 40%,#9c7724 75%,#c9a242)}
+.framewrap.f-black .liner,.framewrap.f-white .liner,.framewrap.f-oak .liner,.framewrap.f-gold .liner{
+  padding:clamp(4px,.5vw,8px);
+  box-shadow:0 0 0 1px rgba(0,0,0,.25) inset;
+}
+/* the ledge: last five works */
+.rail{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  display:flex;gap:14px;justify-content:center;align-items:flex-end;
+  padding:10px 22px 16px;overflow-x:auto;
+}
+.rail::before{ /* wooden ledge */
+  content:"";position:absolute;left:0;right:0;bottom:0;height:13px;
+  background:linear-gradient(#8d6c40,#6b4f2c);
+  box-shadow:0 -2px 5px rgba(35,24,10,.3);
+}
+.rail button{
+  position:relative;flex:none;width:96px;cursor:pointer;
+  background:#f7f3e8;border:1px solid rgba(60,45,20,.3);
+  padding:5px 5px 4px;border-radius:1px;
+  box-shadow:0 8px 16px -7px rgba(25,18,8,.55);
+  transition:transform .12s;
+  font-family:'Karla',sans-serif;text-align:left;
+}
+.rail button:hover{transform:translateY(-3px)}
+.rail button[aria-pressed="true"]{outline:2px solid var(--cadmium-hi);outline-offset:1px}
+.rail button:focus-visible{outline:2px solid var(--cadmium-hi);outline-offset:2px}
+.rail img{width:100%;height:80px;object-fit:contain;display:block;background:#e7e0cd}
+.rail .t{
+  display:block;font-size:9.5px;color:#5d564a;padding-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.rail .empty{
+  font-size:11px;color:rgba(40,32,20,.55);font-style:italic;align-self:center;
+  padding-bottom:8px;
+}
+/* museum placard */
+.placard{
+  background:var(--placard);
+  color:var(--placard-ink);
+  padding:14px 22px 13px;
+  min-width:min(230px,78vw);
+  max-width:calc(100vw - 32px);
+  box-shadow:0 8px 22px -8px rgba(25,18,8,.45);
+  border-radius:1px;
+  text-align:left;
+}
+.placard input{
+  font-family:'Marcellus',serif;font-weight:400;font-size:17px;letter-spacing:.01em;
+  border:none;background:transparent;color:inherit;width:100%;padding:0 0 1px;
+  border-bottom:1px dashed transparent;border-radius:0;
+}
+.placard input:hover{border-bottom-color:#b9ae90}
+.placard input:focus{outline:none;border-bottom-color:var(--cadmium)}
+.placard .artist{font-size:12px;margin-top:2px;font-weight:600;letter-spacing:.05em}
+.placard .meta{font-size:11.5px;color:#5d564a;margin-top:5px;font-style:italic;font-family:'Karla',sans-serif}
+.placard .meta span{font-style:normal}
+/* curator's note beneath the placard */
+.story{
+  background:var(--placard);color:#4a4337;
+  max-width:min(440px,calc(100vw - 32px));
+  padding:11px 18px 12px;border-radius:1px;
+  box-shadow:0 8px 22px -8px rgba(25,18,8,.4);
+  font-family:'Marcellus',serif;font-size:13px;line-height:1.55;
+  font-style:italic;text-align:left;
+}
+.story::before{content:"— ";color:#9a8f78}
+@media (max-width:880px){
+  /* the page is one tall scroll on a phone: the body must be free to
+     grow with its content, or the document's scroll range stops at the
+     viewport's height and the ledge is cut off at the bottom */
+  html,body{height:auto}
+  body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;min-height:100dvh}
+  aside{
+    flex-direction:column;border-right:none;
+    border-bottom:1px solid var(--hairline);
+    overflow:visible;                       /* the page scrolls as one */
+    gap:20px;
+    padding:22px max(16px,env(safe-area-inset-right)) 20px max(16px,env(safe-area-inset-left));
+  }
+  button.chip{padding:9px 10px;font-size:13px}
+  .chip small{font-size:10.5px}
+  main{
+    padding:26px max(12px,env(safe-area-inset-right)) 30px max(12px,env(safe-area-inset-left));
+    min-height:70vh;min-height:72dvh;
+    overflow:visible;                      /* grow with the page instead of clipping */
+  }
+  .rail{position:static;margin-top:30px;
+        margin-bottom:max(10px,env(safe-area-inset-bottom))}  /* in flow, never clipped */
+  .placard{padding:11px 16px 10px}
+  .rail{justify-content:flex-start;padding-bottom:18px}
+  .rail button{width:84px}
+  .rail img{height:68px}
+  .fineprint{margin-top:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .dot{animation:none;opacity:1}
+}
