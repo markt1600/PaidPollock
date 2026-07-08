@@ -1,0 +1,15 @@
+{
+  "name": "the-atelier",
+  "private": true,
+  "description": "A generative studio in several wings — static HTML/JS, no build step.",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:golden",
+    "test:unit": "node --test \"tests/unit/*.test.js\"",
+    "test:golden": "playwright test",
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "serve": "node tests/serve.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.0"
+  }
+}
